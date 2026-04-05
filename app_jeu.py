@@ -1,3 +1,10 @@
+"""
+⚡ Quiz Master Pro v3
+- CSV illimités (500+ lignes supportées, auto-détection de colonnes)
+- Multijoueur partageable : code de salle unique, chaque joueur sur son propre appareil
+- Timer par niveau, 4 niveaux de difficulté, 10 catégories
+"""
+
 import streamlit as st
 import pandas as pd
 import random
@@ -5,776 +12,1171 @@ import time
 import os
 import json
 import hashlib
-from datetime import datetime
+from datetime import datetime, timedelta
+import glob
 
-# ─── PAGE CONFIG ───────────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════
+#  PAGE CONFIG
+# ══════════════════════════════════════════════════════════════
 st.set_page_config(
-    page_title="⚡ Quiz Master Pro v2",
+    page_title="⚡ Quiz Master Pro",
     page_icon="🎯",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed",
 )
 
-# ─── CSS ────────────────────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════
+#  CSS
+# ══════════════════════════════════════════════════════════════
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600;700&display=swap');
 
-html, body, [class*="css"] { font-family: 'Rajdhani', sans-serif; }
-.stApp {
-  background: linear-gradient(135deg, #050510 0%, #0a0a1f 40%, #050510 100%);
-  min-height: 100vh;
+html,body,[class*="css"]{font-family:'Rajdhani',sans-serif;}
+.stApp{
+  background:radial-gradient(ellipse at top,#0d1b3e 0%,#050510 60%);
+  min-height:100vh;
 }
-[data-testid="stSidebar"] {
-  background: linear-gradient(180deg, #0a0a1f 0%, #050510 100%);
-  border-right: 1px solid #00d4ff22;
+[data-testid="stSidebar"]{background:#070718;border-right:1px solid #00d4ff18;}
+
+/* ── Title ── */
+.main-title{
+  font-family:'Orbitron',monospace;font-size:2.5rem;font-weight:900;
+  text-align:center;
+  background:linear-gradient(90deg,#00d4ff,#ff00ff,#00ff88,#ffaa00,#00d4ff);
+  background-size:400%;
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  animation:gs 5s ease infinite;margin-bottom:0.1rem;
+}
+@keyframes gs{0%,100%{background-position:0%}50%{background-position:100%}}
+.subtitle{
+  text-align:center;color:#00d4ff66;
+  font-size:0.78rem;letter-spacing:4px;text-transform:uppercase;margin-bottom:1.2rem;
 }
 
-/* Title */
-.main-title {
-  font-family: 'Orbitron', monospace;
-  font-size: 2.6rem; font-weight: 900;
-  text-align: center;
-  background: linear-gradient(90deg, #00d4ff, #ff00ff, #00ff88, #ffaa00, #00d4ff);
-  background-size: 400% 400%;
-  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
-  animation: gshift 4s ease infinite;
-  margin-bottom: 0.2rem;
+/* ── Cards ── */
+.card{
+  background:linear-gradient(135deg,rgba(0,212,255,.04),rgba(255,0,255,.03));
+  border:1px solid rgba(0,212,255,.22);border-radius:16px;
+  padding:1.4rem;margin:.6rem 0;
+  box-shadow:0 0 18px rgba(0,212,255,.06),inset 0 0 18px rgba(0,0,0,.25);
 }
-@keyframes gshift { 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }
-
-.subtitle {
-  text-align: center; color: #00d4ff77;
-  font-size: 0.85rem; letter-spacing: 4px; text-transform: uppercase; margin-bottom: 1.5rem;
+.q-card{
+  background:linear-gradient(135deg,rgba(0,212,255,.07),rgba(0,0,0,.55));
+  border:1px solid rgba(0,212,255,.5);border-radius:14px;
+  padding:1.8rem;text-align:center;margin:1rem 0;
+  box-shadow:0 0 28px rgba(0,212,255,.14);
 }
-
-/* Cards */
-.quiz-card {
-  background: linear-gradient(135deg, rgba(0,212,255,0.04), rgba(255,0,255,0.04));
-  border: 1px solid rgba(0,212,255,0.25);
-  border-radius: 16px; padding: 1.5rem; margin: 0.7rem 0;
-  backdrop-filter: blur(10px);
-  box-shadow: 0 0 20px rgba(0,212,255,0.07), inset 0 0 20px rgba(0,0,0,0.3);
+.q-prompt{
+  font-family:'Orbitron',monospace;font-size:1rem;color:#b0d8ff;
+  letter-spacing:1px;margin-bottom:.5rem;
 }
-.question-card {
-  background: linear-gradient(135deg, rgba(0,212,255,0.06), rgba(0,0,0,0.5));
-  border: 1px solid rgba(0,212,255,0.5);
-  border-radius: 14px; padding: 1.8rem; text-align: center; margin: 1rem 0;
-  box-shadow: 0 0 30px rgba(0,212,255,0.15);
-}
-.question-text {
-  font-family: 'Orbitron', monospace; font-size: 1.2rem;
-  color: #e0f8ff; line-height: 1.6;
-  text-shadow: 0 0 15px rgba(0,212,255,0.4);
-}
-.term-highlight {
-  font-family: 'Orbitron', monospace; font-size: 1.6rem; font-weight: 900;
-  color: #00ff88; margin: 0.8rem 0;
-  text-shadow: 0 0 25px rgba(0,255,136,0.6);
-  letter-spacing: 2px;
+.q-term{
+  font-family:'Orbitron',monospace;font-size:1.5rem;font-weight:900;
+  color:#00ff88;text-shadow:0 0 22px rgba(0,255,136,.55);
+  letter-spacing:2px;line-height:1.4;margin:.6rem 0;
 }
 
-/* Timer */
-.timer-danger { animation: blink 0.5s infinite; }
-@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
-.timer-box {
-  text-align: center; padding: 0.6rem 1.2rem;
-  border-radius: 50px; display: inline-block;
-  font-family: 'Orbitron', monospace; font-size: 1.4rem; font-weight: 900;
+/* ── Timer ── */
+.timer{
+  text-align:center;padding:.5rem 1.1rem;border-radius:50px;
+  display:inline-block;font-family:'Orbitron',monospace;
+  font-size:1.3rem;font-weight:900;
 }
-.timer-green { background: rgba(0,255,136,0.1); border: 2px solid #00ff88; color: #00ff88;
-  box-shadow: 0 0 20px rgba(0,255,136,0.3); }
-.timer-yellow { background: rgba(255,170,0,0.1); border: 2px solid #ffaa00; color: #ffaa00;
-  box-shadow: 0 0 20px rgba(255,170,0,0.3); }
-.timer-red { background: rgba(255,50,50,0.1); border: 2px solid #ff4444; color: #ff4444;
-  box-shadow: 0 0 20px rgba(255,68,68,0.4); animation: blink 0.5s infinite; }
+.t-green{background:rgba(0,255,136,.08);border:2px solid #00ff88;color:#00ff88;box-shadow:0 0 18px rgba(0,255,136,.25);}
+.t-yellow{background:rgba(255,170,0,.08);border:2px solid #ffaa00;color:#ffaa00;box-shadow:0 0 18px rgba(255,170,0,.25);}
+.t-red{background:rgba(255,50,50,.1);border:2px solid #ff4444;color:#ff4444;
+  box-shadow:0 0 22px rgba(255,68,68,.35);animation:blink .5s infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
 
-/* Level badges */
-.badge-debutant   { color:#00d4ff; border:1px solid #00d4ff; background:rgba(0,212,255,0.1); }
-.badge-potentiel  { color:#00ff88; border:1px solid #00ff88; background:rgba(0,255,136,0.1); }
-.badge-legende    { color:#ffaa00; border:1px solid #ffaa00; background:rgba(255,170,0,0.1); }
-.badge-superstar  { color:#ff00ff; border:1px solid #ff00ff; background:rgba(255,0,255,0.1); }
-.badge-base { padding:0.3rem 1rem; border-radius:50px; font-family:'Orbitron',monospace;
-  font-size:0.75rem; font-weight:700; letter-spacing:2px; display:inline-block; margin:0.2rem; }
+/* ── Notifications ── */
+.notif{border-radius:14px;padding:1.4rem;text-align:center;margin:1rem 0;}
+.n-ok{background:linear-gradient(135deg,rgba(0,255,136,.1),rgba(0,180,80,.05));
+  border:2px solid #00ff88;box-shadow:0 0 45px rgba(0,255,136,.3),0 0 90px rgba(0,255,136,.08);
+  animation:popIn .4s cubic-bezier(.34,1.56,.64,1);}
+.n-wrong{background:linear-gradient(135deg,rgba(255,50,50,.1),rgba(180,0,0,.05));
+  border:2px solid #ff4444;box-shadow:0 0 45px rgba(255,68,68,.3),0 0 90px rgba(255,68,68,.08);
+  animation:shake .45s ease;}
+.n-time{background:linear-gradient(135deg,rgba(255,170,0,.1),rgba(180,80,0,.05));
+  border:2px solid #ffaa00;box-shadow:0 0 45px rgba(255,170,0,.3);
+  animation:popIn .4s ease;}
+@keyframes popIn{0%{transform:scale(.7);opacity:0}80%{transform:scale(1.04)}100%{transform:scale(1);opacity:1}}
+@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-9px)}40%{transform:translateX(9px)}60%{transform:translateX(-6px)}80%{transform:translateX(6px)}}
+.notif h2{font-family:'Orbitron',monospace;font-size:1.4rem;margin:0;}
+.n-ok h2{color:#00ff88;text-shadow:0 0 18px #00ff88;}
+.n-wrong h2{color:#ff4444;text-shadow:0 0 18px #ff4444;}
+.n-time h2{color:#ffaa00;text-shadow:0 0 18px #ffaa00;}
+.notif p{color:#ccc;font-size:.92rem;margin:.4rem 0 0;}
 
-/* Notifications */
-.notif-correct {
-  background: linear-gradient(135deg, rgba(0,255,136,0.12), rgba(0,200,100,0.06));
-  border: 2px solid #00ff88; border-radius: 14px; padding: 1.5rem; text-align: center;
-  animation: popIn 0.4s cubic-bezier(0.34,1.56,0.64,1);
-  box-shadow: 0 0 50px rgba(0,255,136,0.35), 0 0 100px rgba(0,255,136,0.1);
-  margin: 1rem 0;
+/* ── Score ── */
+.score-box{
+  background:linear-gradient(135deg,rgba(255,170,0,.1),rgba(255,0,255,.04));
+  border:1px solid rgba(255,170,0,.38);border-radius:12px;
+  padding:.9rem;text-align:center;margin-bottom:.9rem;
 }
-.notif-wrong {
-  background: linear-gradient(135deg, rgba(255,50,50,0.12), rgba(200,0,0,0.06));
-  border: 2px solid #ff4444; border-radius: 14px; padding: 1.5rem; text-align: center;
-  animation: shake 0.5s ease;
-  box-shadow: 0 0 50px rgba(255,68,68,0.35), 0 0 100px rgba(255,68,68,0.1);
-  margin: 1rem 0;
-}
-.notif-timeout {
-  background: linear-gradient(135deg, rgba(255,170,0,0.12), rgba(200,100,0,0.06));
-  border: 2px solid #ffaa00; border-radius: 14px; padding: 1.5rem; text-align: center;
-  animation: popIn 0.4s ease;
-  box-shadow: 0 0 50px rgba(255,170,0,0.35);
-  margin: 1rem 0;
-}
-@keyframes popIn {
-  0%{transform:scale(0.7);opacity:0} 80%{transform:scale(1.05)} 100%{transform:scale(1);opacity:1}
-}
-@keyframes shake {
-  0%,100%{transform:translateX(0)} 20%{transform:translateX(-10px)} 40%{transform:translateX(10px)}
-  60%{transform:translateX(-8px)} 80%{transform:translateX(8px)}
-}
-.notif-correct h2{color:#00ff88;font-family:'Orbitron',monospace;font-size:1.5rem;margin:0;text-shadow:0 0 20px #00ff88;}
-.notif-wrong   h2{color:#ff4444;font-family:'Orbitron',monospace;font-size:1.5rem;margin:0;text-shadow:0 0 20px #ff4444;}
-.notif-timeout h2{color:#ffaa00;font-family:'Orbitron',monospace;font-size:1.5rem;margin:0;text-shadow:0 0 20px #ffaa00;}
-.notif-correct p,.notif-wrong p,.notif-timeout p{color:#ccc;font-size:0.95rem;margin-top:0.5rem;}
+.score-box h3{color:#ffaa00;font-family:'Orbitron',monospace;font-size:.75rem;margin:0;}
+.score-box .big{color:#fff;font-family:'Orbitron',monospace;font-size:1.9rem;font-weight:900;}
 
-/* Score */
-.score-box {
-  background: linear-gradient(135deg, rgba(255,170,0,0.1), rgba(255,0,255,0.05));
-  border: 1px solid rgba(255,170,0,0.4); border-radius: 12px;
-  padding: 1rem; text-align: center; margin-bottom: 1rem;
+/* ── Players ── */
+.p-row{
+  display:flex;align-items:center;gap:.7rem;
+  background:rgba(0,212,255,.04);border:1px solid rgba(0,212,255,.18);
+  border-radius:10px;padding:.6rem .9rem;margin:.3rem 0;
 }
-.score-box h3{color:#ffaa00;font-family:'Orbitron',monospace;font-size:0.8rem;margin:0;}
-.score-box .big{color:#fff;font-family:'Orbitron',monospace;font-size:2rem;font-weight:900;}
+.p-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0;}
+.p-name{color:#fff;font-weight:600;flex:1;font-size:.9rem;}
+.p-score{color:#ffaa00;font-family:'Orbitron',monospace;font-weight:700;}
+.p-active{border-color:#00ff88 !important;box-shadow:0 0 12px rgba(0,255,136,.18);}
 
-/* Multiplayer */
-.player-row {
-  display:flex; align-items:center; gap:0.8rem;
-  background:rgba(0,212,255,0.05); border:1px solid rgba(0,212,255,0.2);
-  border-radius:10px; padding:0.7rem 1rem; margin:0.4rem 0;
+/* ── Room badge ── */
+.room-badge{
+  background:rgba(0,212,255,.08);border:1px solid rgba(0,212,255,.4);
+  border-radius:10px;padding:.7rem 1.2rem;text-align:center;
+  font-family:'Orbitron',monospace;letter-spacing:3px;
 }
-.player-color { width:14px;height:14px;border-radius:50%;flex-shrink:0; }
-.player-name { color:#fff;font-weight:600;flex:1; }
-.player-score { color:#ffaa00;font-family:'Orbitron',monospace;font-weight:700; }
-.active-player { border-color:#00ff88 !important; box-shadow:0 0 15px rgba(0,255,136,0.2); }
+.room-code{font-size:2rem;font-weight:900;color:#00d4ff;
+  text-shadow:0 0 20px rgba(0,212,255,.6);}
+.room-label{font-size:.65rem;color:#00d4ff77;letter-spacing:4px;text-transform:uppercase;}
 
-/* Final */
-.final-card {
-  background: linear-gradient(135deg, rgba(0,212,255,0.07), rgba(255,0,255,0.05));
-  border: 2px solid rgba(0,212,255,0.4);
-  border-radius: 20px; padding: 2.5rem; text-align: center;
-  box-shadow: 0 0 60px rgba(0,212,255,0.15);
-  animation: popIn 0.8s ease;
+/* ── Final ── */
+.final{
+  background:linear-gradient(135deg,rgba(0,212,255,.07),rgba(255,0,255,.04));
+  border:2px solid rgba(0,212,255,.38);border-radius:20px;
+  padding:2.4rem;text-align:center;
+  box-shadow:0 0 55px rgba(0,212,255,.14);animation:popIn .7s ease;
 }
-.final-card h1{font-family:'Orbitron',monospace;color:#00ff88;font-size:2rem;text-shadow:0 0 30px #00ff88;}
-.final-score{font-family:'Orbitron',monospace;font-size:3.5rem;font-weight:900;color:#ffaa00;text-shadow:0 0 40px #ffaa00;}
-.podium-1{color:#ffd700;font-size:1.3rem;font-weight:700;}
-.podium-2{color:#c0c0c0;font-size:1.1rem;font-weight:700;}
-.podium-3{color:#cd7f32;font-size:1rem;font-weight:700;}
+.final h1{font-family:'Orbitron',monospace;color:#00ff88;font-size:1.9rem;
+  text-shadow:0 0 25px #00ff88;margin-bottom:.4rem;}
+.f-score{font-family:'Orbitron',monospace;font-size:3.2rem;font-weight:900;
+  color:#ffaa00;text-shadow:0 0 35px #ffaa00;}
 
-/* Buttons */
-.stButton>button {
-  width:100%; padding:0.85rem 1rem;
-  font-family:'Rajdhani',sans-serif; font-size:1rem; font-weight:600;
-  border-radius:10px; border:1px solid rgba(0,212,255,0.35);
-  background:linear-gradient(135deg,rgba(0,212,255,0.07),rgba(0,0,0,0.5));
-  color:#e0f0ff; cursor:pointer; transition:all 0.2s ease; letter-spacing:0.5px;
+/* ── Buttons ── */
+.stButton>button{
+  width:100%;padding:.8rem 1rem;
+  font-family:'Rajdhani',sans-serif;font-size:.98rem;font-weight:600;
+  border-radius:10px;border:1px solid rgba(0,212,255,.32);
+  background:linear-gradient(135deg,rgba(0,212,255,.07),rgba(0,0,0,.5));
+  color:#dff0ff;cursor:pointer;transition:all .2s ease;
 }
-.stButton>button:hover {
-  background:linear-gradient(135deg,rgba(0,212,255,0.18),rgba(255,0,255,0.08));
-  border-color:#00d4ff; color:#fff;
-  box-shadow:0 0 20px rgba(0,212,255,0.35),0 0 40px rgba(0,212,255,0.1);
+.stButton>button:hover{
+  background:linear-gradient(135deg,rgba(0,212,255,.17),rgba(255,0,255,.07));
+  border-color:#00d4ff;color:#fff;
+  box-shadow:0 0 18px rgba(0,212,255,.3),0 0 36px rgba(0,212,255,.08);
   transform:translateY(-2px);
 }
 
-.section-hdr {
-  color:#00d4ff; font-size:0.75rem; letter-spacing:3px; text-transform:uppercase;
-  border-bottom:1px solid rgba(0,212,255,0.25); padding-bottom:0.3rem; margin:1.2rem 0 0.8rem;
+/* ── Misc ── */
+.hdr{color:#00d4ff;font-size:.72rem;letter-spacing:3px;text-transform:uppercase;
+  border-bottom:1px solid rgba(0,212,255,.2);padding-bottom:.25rem;margin:1.1rem 0 .7rem;}
+.p-tag{text-align:center;font-family:'Orbitron',monospace;color:#ffaa00;
+  font-size:.78rem;letter-spacing:2px;padding:.4rem;
+  border-bottom:1px solid rgba(255,170,0,.22);margin-bottom:.7rem;}
+.stTextInput>div>div>input{
+  background:rgba(0,212,255,.04);border:1px solid rgba(0,212,255,.28);
+  color:white;border-radius:8px;
 }
-.player-tag {
-  text-align:center; font-family:'Orbitron',monospace; color:#ffaa00;
-  font-size:0.8rem; letter-spacing:2px; padding:0.5rem;
-  border-bottom:1px solid rgba(255,170,0,0.25); margin-bottom:0.8rem;
-}
-.progress-lbl{color:#00d4ff;font-size:0.78rem;letter-spacing:2px;text-transform:uppercase;margin-bottom:0.25rem;}
-
-/* Input */
-.stTextInput>div>div>input {
-  background:rgba(0,212,255,0.04); border:1px solid rgba(0,212,255,0.3);
-  color:white; border-radius:8px;
-}
-.stSelectbox>div>div{background:rgba(0,212,255,0.04);border:1px solid rgba(0,212,255,0.3);border-radius:8px;}
 #MainMenu,footer,header{visibility:hidden;}
 </style>
 """, unsafe_allow_html=True)
 
-# ─── CONSTANTS ────────────────────────────────────────────────────────────────
-BASE = os.path.dirname(__file__)
-DATA = os.path.join(BASE, "data")
+# ══════════════════════════════════════════════════════════════
+#  PATHS & CONSTANTS
+# ══════════════════════════════════════════════════════════════
+BASE      = os.path.dirname(os.path.abspath(__file__))
+DATA_DIR  = os.path.join(BASE, "data")
+ROOMS_DIR = os.path.join(BASE, "rooms")
+os.makedirs(ROOMS_DIR, exist_ok=True)
 
 PLAYER_COLORS = ["#00d4ff", "#ff00ff", "#00ff88", "#ffaa00"]
 PLAYER_EMOJIS = ["🔵", "🟣", "🟢", "🟡"]
 
 LEVELS = {
-    "🌱 Débutant":   {"key":"debutant",  "time":30, "qs":10, "color":"#00d4ff", "multiplier":1},
-    "⚡ Potentiel":  {"key":"potentiel", "time":20, "qs":15, "color":"#00ff88", "multiplier":2},
-    "🔥 Légende":    {"key":"legende",   "time":15, "qs":20, "color":"#ffaa00", "multiplier":3},
-    "👑 Superstar":  {"key":"superstar", "time":10, "qs":25, "color":"#ff00ff", "multiplier":5},
+    "🌱 Débutant":  {"key":"debutant",  "time":30, "qs":10, "color":"#00d4ff", "mult":1},
+    "⚡ Potentiel": {"key":"potentiel", "time":20, "qs":15, "color":"#00ff88", "mult":2},
+    "🔥 Légende":   {"key":"legende",   "time":15, "qs":20, "color":"#ffaa00", "mult":3},
+    "👑 Superstar": {"key":"superstar", "time":10, "qs":25, "color":"#ff00ff", "mult":5},
 }
 
+# ── CSV column schemas.  Each entry: (question_col, answer_col, prompt, type)
+# type: "vocab" | "mcq" (has Choix_2/3/4 columns) | "music"
 MODES = {
     "🔐 Sécurité Financière": {
         "file":"securite_financiere.csv","type":"vocab",
         "col_q":"Terme","col_a":"Definition",
         "prompt":"Quelle est la définition de :","color":"#00d4ff","icon":"🏦",
-        "desc":"Vocabulaire AML/KYC/Compliance professionnel"
+        "desc":"Vocabulaire AML/KYC/Compliance"
     },
-    "🇫🇷 Français":{"file":"apprentissage_francais.csv","type":"vocab",
+    "🇫🇷 Français": {
+        "file":"apprentissage_francais.csv","type":"vocab",
         "col_q":"Mot_Expression","col_a":"Definition_Synonyme",
         "prompt":"Synonyme ou définition de :","color":"#ff00ff","icon":"📚",
-        "desc":"Vocabulaire et expressions françaises"
+        "desc":"Vocabulaire & expressions françaises"
     },
-    "🇬🇧 Anglais":{"file":"anglais.csv","type":"vocab",
+    "🇬🇧 Anglais": {
+        "file":"anglais.csv","type":"vocab",
         "col_q":"Mot_Expression","col_a":"Definition_EN",
         "prompt":"What is the definition of:","color":"#00ffff","icon":"🌐",
         "desc":"English vocabulary and idioms"
     },
-    "🇪🇸 Espagnol":{"file":"espagnol.csv","type":"vocab",
+    "🇪🇸 Espagnol": {
+        "file":"espagnol.csv","type":"vocab",
         "col_q":"Mot_Expression","col_a":"Definition_ES",
         "prompt":"¿Cuál es la definición de:","color":"#ff6600","icon":"🌮",
         "desc":"Vocabulario y expresiones en español"
     },
-    "🇭🇹 Créole Haïtien":{"file":"creole_haitien.csv","type":"vocab",
+    "🇭🇹 Créole Haïtien": {
+        "file":"creole_haitien.csv","type":"vocab",
         "col_q":"Mot_Expression","col_a":"Definition_Kreyol",
         "prompt":"Ki definisyon oswa sinonim:","color":"#ff0044","icon":"🌴",
         "desc":"Mo ak ekspresyon an kreyòl ayisyen"
     },
-    "🏛️ Monuments":{"file":"monuments_monde.csv","type":"vocab",
+    "🏛️ Monuments": {
+        "file":"monuments_monde.csv","type":"vocab",
         "col_q":"Monument","col_a":"Pays",
         "prompt":"Dans quel pays se trouve :","color":"#ffaa00","icon":"🌍",
         "desc":"Monuments historiques du monde entier"
     },
-    "🎵 Musique":{"file":"musique_monde.csv","type":"music",
+    "🎵 Musique": {
+        "file":"musique_monde.csv","type":"music",
         "col_q":"Artiste","col_a":"Chanson",
         "prompt":"Quelle est la chanson de :","color":"#ff00aa","icon":"🎶",
-        "desc":"Artistes et chansons haïtiens & mondiaux"
+        "desc":"Artistes & chansons haïtiens et mondiaux"
     },
-    "🔢 Mathématiques":{"file":"mathematiques.csv","type":"math",
+    "🔢 Mathématiques": {
+        "file":"mathematiques.csv","type":"math",
         "col_q":"Question","col_a":"Reponse",
         "prompt":"Résolvez :","color":"#00ff88","icon":"🧮",
         "desc":"Algèbre et calcul — tous niveaux"
     },
-    "🏺 Histoire":{"file":"histoire.csv","type":"mcq",
+    "🏺 Histoire": {
+        "file":"histoire.csv","type":"mcq",
         "col_q":"Question","col_a":"Reponse_Correcte",
         "prompt":"","color":"#ff8800","icon":"📜",
-        "desc":"France, Haïti & Histoire mondiale"
+        "desc":"France · Haïti · Histoire mondiale"
     },
-    "🌐 Culture Générale":{"file":"culture_generale.csv","type":"mcq",
+    "🌐 Culture Générale": {
+        "file":"culture_generale.csv","type":"mcq",
         "col_q":"Question","col_a":"Reponse_Correcte",
         "prompt":"","color":"#aa00ff","icon":"🧠",
-        "desc":"Sciences, Géo, Art, Sports & plus"
+        "desc":"Sciences · Géo · Art · Sports"
     },
 }
 
-# ─── DATA LOADING ──────────────────────────────────────────────────────────────
-@st.cache_data
-def load_csv(filename):
-    path = os.path.join(DATA, filename)
+# ══════════════════════════════════════════════════════════════
+#  DATA LOADING  (unlimited rows — reads entire CSV)
+# ══════════════════════════════════════════════════════════════
+@st.cache_data(ttl=60)           # re-read every 60s so new rows appear after save
+def load_csv(filename: str) -> pd.DataFrame:
+    """Load any CSV from DATA_DIR without row limit.
+    Handles: extra commas, BOM, mixed encodings, missing columns gracefully.
+    """
+    path = os.path.join(DATA_DIR, filename)
     if not os.path.exists(path):
         return pd.DataFrame()
-    return pd.read_csv(path)
+    for enc in ("utf-8-sig", "utf-8", "latin-1"):
+        try:
+            df = pd.read_csv(
+                path,
+                encoding=enc,
+                on_bad_lines="skip",   # skip malformed rows instead of crashing
+                dtype=str,             # read everything as string → no type errors
+                skip_blank_lines=True,
+            )
+            df = df.loc[:, ~df.columns.str.startswith("Unnamed")]  # drop phantom cols
+            df.columns = [c.strip() for c in df.columns]           # strip whitespace
+            df = df.dropna(how="all")                               # remove empty rows
+            return df
+        except Exception:
+            continue
+    return pd.DataFrame()
 
-def get_df(mode_name):
+
+def get_df(mode_name: str) -> pd.DataFrame:
     return load_csv(MODES[mode_name]["file"])
 
-# ─── QUESTION BUILDING ─────────────────────────────────────────────────────────
-def build_questions(mode_name, level_key, n):
+
+def csv_row_count(mode_name: str) -> int:
+    return len(get_df(mode_name))
+
+
+# ══════════════════════════════════════════════════════════════
+#  QUESTION BUILDING  (supports any number of rows in CSV)
+# ══════════════════════════════════════════════════════════════
+def build_questions(mode_name: str, level_key: str, n: int) -> list:
     cfg = MODES[mode_name]
-    df  = get_df(mode_name).dropna()
-    
-    # Filter by level for math/history/culture
-    if cfg["type"] in ("math","mcq") and "Difficulte" in df.columns and level_key != "debutant":
-        # Include current and lower levels
-        order = ["debutant","potentiel","legende","superstar"]
-        idx   = order.index(level_key)
-        allowed = order[:idx+1]
-        df = df[df["Difficulte"].isin(allowed)]
-    elif cfg["type"] in ("math","mcq") and "Difficulte" in df.columns:
-        df = df[df["Difficulte"] == "debutant"]
-    
-    if len(df) == 0:
-        df = get_df(mode_name).dropna()
-    
-    df = df.sample(frac=1).reset_index(drop=True)
+    df  = get_df(mode_name)
+
+    if df.empty:
+        return []
+
+    # ── make sure required columns exist ──
+    cq, ca = cfg["col_q"], cfg["col_a"]
+    if cq not in df.columns or ca not in df.columns:
+        st.error(f"⚠️ Colonnes manquantes dans {cfg['file']}: besoin de '{cq}' et '{ca}'.")
+        return []
+
+    df = df[[c for c in df.columns]].copy()
+    df = df.dropna(subset=[cq, ca])
+    df[cq] = df[cq].astype(str).str.strip()
+    df[ca] = df[ca].astype(str).str.strip()
+    df = df[df[cq] != ""].dropna()
+
+    # ── level filter (math / mcq only) ──
+    order = ["debutant", "potentiel", "legende", "superstar"]
+    if cfg["type"] in ("math", "mcq") and "Difficulte" in df.columns:
+        allowed = order[: order.index(level_key) + 1]
+        sub = df[df["Difficulte"].isin(allowed)]
+        df  = sub if len(sub) > 0 else df
+
+    # ── shuffle & cap at n ──
+    df = df.sample(frac=1, random_state=random.randint(0, 9999)).reset_index(drop=True)
     n  = min(n, len(df))
+    if n == 0:
+        return []
+
     qs = []
-    
     for i in range(n):
         row   = df.iloc[i]
-        right = str(row[cfg["col_a"]])
-        
-        # For MCQ types, use provided choices
-        if cfg["type"] == "mcq" and "Choix_2" in df.columns:
+        right = str(row[ca]).strip()
+
+        # ── build 4 choices ──
+        if cfg["type"] == "mcq":
             choices = [right]
-            for cx in ["Choix_2","Choix_3","Choix_4"]:
-                if cx in df.columns and pd.notna(row.get(cx)):
-                    choices.append(str(row[cx]))
-            # Fill with random from df if not enough
-            while len(choices) < 4:
-                sample = df[df[cfg["col_a"]] != right][cfg["col_a"]].dropna()
-                if len(sample) > 0:
-                    choices.append(str(random.choice(sample.values)))
-                else:
+            for cx in ["Choix_2", "Choix_3", "Choix_4"]:
+                if cx in df.columns:
+                    v = str(row.get(cx, "")).strip()
+                    if v and v != "nan" and v not in choices:
+                        choices.append(v)
+            # pad from pool if needed
+            pool = df[df[ca] != right][ca].dropna().astype(str).str.strip()
+            pool = pool[pool != "nan"].tolist()
+            random.shuffle(pool)
+            for p in pool:
+                if len(choices) >= 4:
                     break
-            choices = list(dict.fromkeys(choices))[:4]
-            random.shuffle(choices)
+                if p not in choices:
+                    choices.append(p)
+            choices = choices[:4]
         else:
-            pool  = df[df[cfg["col_a"]] != right][cfg["col_a"]].dropna()
-            wrongs = pool.sample(min(3, len(pool))).tolist()
-            choices = [right] + [str(w) for w in wrongs]
-            random.shuffle(choices)
-        
+            pool = (
+                df[df[ca] != right][ca]
+                .dropna().astype(str).str.strip()
+                .pipe(lambda s: s[s != "nan"])
+                .tolist()
+            )
+            random.shuffle(pool)
+            wrongs  = pool[:3]
+            choices = [right] + wrongs
+
+        random.shuffle(choices)
+
         qs.append({
-            "question": str(row[cfg["col_q"]]),
+            "question": str(row[cq]).strip(),
             "correct":  right,
             "choices":  choices,
             "prompt":   cfg["prompt"],
         })
     return qs
 
-# ─── SESSION STATE ─────────────────────────────────────────────────────────────
-def init_state():
-    defs = {
-        "screen":"home",
-        "players":[],       # list of {"name":str,"score":int,"wrongs":[]}
-        "n_players":1,
-        "cur_player":0,     # index in players list
-        "game_mode":None,
-        "level_name":None,
-        "questions":[],
-        "q_index":0,
-        "answer_given":False,
-        "last_correct":None,
-        "timed_out":False,
-        "q_start_time":None,
+
+# ══════════════════════════════════════════════════════════════
+#  ROOM SYSTEM  (file-based shared state for multiplayer)
+# ══════════════════════════════════════════════════════════════
+ROOM_TTL_MINUTES = 120   # rooms expire after 2h
+
+def _room_path(code: str) -> str:
+    return os.path.join(ROOMS_DIR, f"room_{code.upper()}.json")
+
+
+def generate_room_code() -> str:
+    base = hashlib.md5(str(time.time()).encode()).hexdigest()[:6].upper()
+    return base
+
+
+def room_create(code: str, host_name: str, mode: str, level: str):
+    data = {
+        "code": code,
+        "host": host_name,
+        "mode": mode,
+        "level": level,
+        "created": time.time(),
+        "status": "waiting",   # waiting | playing | done
+        "questions": [],
+        "players": {host_name: {"score": 0, "q_index": 0, "done": False, "wrongs": []}},
+        "cur_q_unlock": time.time(),   # timestamp when next q becomes available
     }
-    for k,v in defs.items():
+    _room_save(code, data)
+    return data
+
+
+def _room_save(code: str, data: dict):
+    with open(_room_path(code), "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+
+def room_load(code: str) -> dict | None:
+    p = _room_path(code)
+    if not os.path.exists(p):
+        return None
+    try:
+        with open(p, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        # expire old rooms
+        if time.time() - data.get("created", 0) > ROOM_TTL_MINUTES * 60:
+            os.remove(p)
+            return None
+        return data
+    except Exception:
+        return None
+
+
+def room_join(code: str, player_name: str) -> dict | None:
+    data = room_load(code)
+    if data is None:
+        return None
+    if player_name not in data["players"]:
+        data["players"][player_name] = {"score": 0, "q_index": 0, "done": False, "wrongs": []}
+        _room_save(code, data)
+    return data
+
+
+def room_answer(code: str, player_name: str, correct: bool, pts: int, wrong_entry=None):
+    data = room_load(code)
+    if data is None:
+        return
+    pl = data["players"].get(player_name, {"score": 0, "q_index": 0, "done": False, "wrongs": []})
+    if correct:
+        pl["score"] += pts
+    elif wrong_entry:
+        pl["wrongs"].append(wrong_entry)
+    pl["q_index"] += 1
+    total = len(data.get("questions", []))
+    if pl["q_index"] >= total:
+        pl["done"] = True
+    data["players"][player_name] = pl
+    _room_save(code, data)
+
+
+def room_start(code: str, questions: list):
+    data = room_load(code)
+    if data is None:
+        return
+    data["status"]    = "playing"
+    data["questions"] = questions
+    _room_save(code, data)
+
+
+def room_cleanup():
+    """Remove expired room files."""
+    for f in glob.glob(os.path.join(ROOMS_DIR, "room_*.json")):
+        try:
+            with open(f) as fp:
+                d = json.load(fp)
+            if time.time() - d.get("created", 0) > ROOM_TTL_MINUTES * 60:
+                os.remove(f)
+        except Exception:
+            pass
+
+
+# ══════════════════════════════════════════════════════════════
+#  SESSION STATE
+# ══════════════════════════════════════════════════════════════
+def _init():
+    defaults = {
+        "screen":       "home",       # home | solo | room_create | room_join | room_lobby | room_quiz | room_result | solo_quiz | solo_result
+        "player_name":  "",
+        "room_code":    "",
+        # solo game
+        "s_mode":       None,
+        "s_level":      "🌱 Débutant",
+        "s_questions":  [],
+        "s_qi":         0,
+        "s_score":      0,
+        "s_wrongs":     [],
+        "s_answered":   False,
+        "s_correct":    None,
+        "s_timeout":    False,
+        "s_qtime":      None,
+    }
+    for k, v in defaults.items():
         if k not in st.session_state:
             st.session_state[k] = v
 
-init_state()
+_init()
 
-# ─── HELPERS ──────────────────────────────────────────────────────────────────
-def time_left():
-    if st.session_state.q_start_time is None:
+
+# ══════════════════════════════════════════════════════════════
+#  HELPERS
+# ══════════════════════════════════════════════════════════════
+def time_left_solo() -> int:
+    if st.session_state.s_qtime is None:
         return 99
-    level = LEVELS[st.session_state.level_name]
-    elapsed = time.time() - st.session_state.q_start_time
-    return max(0, level["time"] - int(elapsed))
+    lvl = LEVELS[st.session_state.s_level]
+    return max(0, lvl["time"] - int(time.time() - st.session_state.s_qtime))
 
-def get_badge(pct):
+
+def time_left_room(room: dict) -> int:
+    pname = st.session_state.player_name
+    pl    = room["players"].get(pname, {})
+    qi    = pl.get("q_index", 0)
+    qtime = room.get(f"qtime_{pname}_{qi}")
+    if qtime is None:
+        return 99
+    lvl = LEVELS.get(room.get("level", "🌱 Débutant"), LEVELS["🌱 Débutant"])
+    return max(0, lvl["time"] - int(time.time() - qtime))
+
+
+def badge(pct: int):
     if pct >= 90: return "🏆 LÉGENDAIRE", "#00ff88"
-    if pct >= 70: return "⭐ EXPERT",      "#ffaa00"
-    if pct >= 50: return "👍 BIEN",        "#00d4ff"
+    if pct >= 70: return "⭐ EXPERT",     "#ffaa00"
+    if pct >= 50: return "👍 BIEN",       "#00d4ff"
     return "📚 À REVOIR", "#ff4444"
 
-def cur_player():
-    idx = st.session_state.cur_player
-    return st.session_state.players[idx] if idx < len(st.session_state.players) else None
 
-def reset_quiz():
-    for p in st.session_state.players:
-        p["score"] = 0
-        p["wrongs"] = []
-    st.session_state.q_index      = 0
-    st.session_state.cur_player   = 0
-    st.session_state.answer_given = False
-    st.session_state.last_correct = None
-    st.session_state.timed_out    = False
-    st.session_state.q_start_time = None
+def timer_html(tl: int, total_time: int) -> str:
+    r = tl / total_time
+    cls = "t-green" if r > .5 else ("t-yellow" if r > .25 else "t-red")
+    return f'<div style="text-align:right"><div class="timer {cls}">⏱ {tl}s</div></div>'
 
-# ─── SCREEN: HOME ─────────────────────────────────────────────────────────────
+
+def notif_html(kind: str, pts: int, correct_ans: str) -> str:
+    if kind == "ok":
+        return (f'<div class="notif n-ok"><h2>✅ CORRECT ! +{pts} pt{"s" if pts>1 else ""}</h2>'
+                f'<p><strong style="color:#00ff88">{correct_ans}</strong></p></div>')
+    elif kind == "wrong":
+        return (f'<div class="notif n-wrong"><h2>❌ INCORRECT</h2>'
+                f'<p>Bonne réponse : <strong style="color:#ff8888">{correct_ans}</strong></p></div>')
+    else:
+        return (f'<div class="notif n-time"><h2>⌛ TEMPS ÉCOULÉ !</h2>'
+                f'<p>La réponse était : <strong style="color:#ffaa00">{correct_ans}</strong></p></div>')
+
+
+# ══════════════════════════════════════════════════════════════
+#  DEEP-LINK via query params
+#  URL: ?room=ABCDEF  →  auto-redirect to join screen
+# ══════════════════════════════════════════════════════════════
+qp = st.query_params
+if "room" in qp and st.session_state.screen == "home":
+    st.session_state.room_code = qp["room"].upper()
+    st.session_state.screen    = "room_join"
+    st.rerun()
+
+
+# ══════════════════════════════════════════════════════════════
+#  SCREEN: HOME
+# ══════════════════════════════════════════════════════════════
 def screen_home():
+    room_cleanup()
     st.markdown('<div class="main-title">⚡ QUIZ MASTER PRO</div>', unsafe_allow_html=True)
-    st.markdown('<div class="subtitle">10 Univers · 4 Niveaux · Compétition Multijoueur</div>', unsafe_allow_html=True)
+    st.markdown('<div class="subtitle">10 Catégories · 4 Niveaux · Solo & Multijoueur</div>', unsafe_allow_html=True)
 
-    col_l, col_c, col_r = st.columns([0.5, 3, 0.5])
-    with col_c:
-        # ── Multiplayer setup ──
-        with st.container():
-            st.markdown('<div class="quiz-card">', unsafe_allow_html=True)
-            st.markdown('<div class="section-hdr">👥 Participants</div>', unsafe_allow_html=True)
-            
-            n_players = st.select_slider(
-                "Nombre de joueurs",
-                options=[1,2,3,4],
-                value=st.session_state.n_players,
-                label_visibility="collapsed"
+    cl, cc, cr = st.columns([1, 3, 1])
+    with cc:
+        # Player name
+        st.markdown('<div class="card">', unsafe_allow_html=True)
+        st.markdown('<div class="hdr">👤 Votre nom</div>', unsafe_allow_html=True)
+        name = st.text_input("", value=st.session_state.player_name,
+                             placeholder="Entrez votre nom…",
+                             label_visibility="collapsed", key="name_input")
+        st.session_state.player_name = name.strip()
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        # Mode buttons
+        st.markdown('<div class="card">', unsafe_allow_html=True)
+        st.markdown('<div class="hdr">🎮 Mode de jeu</div>', unsafe_allow_html=True)
+        b1, b2, b3 = st.columns(3)
+        with b1:
+            if st.button("🎯 Solo", use_container_width=True):
+                if not st.session_state.player_name:
+                    st.warning("⚠️ Entrez votre nom !")
+                else:
+                    st.session_state.screen = "solo"
+                    st.rerun()
+        with b2:
+            if st.button("🏠 Créer une salle", use_container_width=True):
+                if not st.session_state.player_name:
+                    st.warning("⚠️ Entrez votre nom !")
+                else:
+                    st.session_state.screen = "room_create"
+                    st.rerun()
+        with b3:
+            if st.button("🔗 Rejoindre", use_container_width=True):
+                if not st.session_state.player_name:
+                    st.warning("⚠️ Entrez votre nom !")
+                else:
+                    st.session_state.screen = "room_join"
+                    st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    # Stats
+    st.markdown("<br>", unsafe_allow_html=True)
+    cols = st.columns(5)
+    stats = [
+        ("🔐","Finance","🔐 Sécurité Financière","#00d4ff"),
+        ("🇫🇷","Français","🇫🇷 Français","#ff00ff"),
+        ("🌍","Monuments","🏛️ Monuments","#ffaa00"),
+        ("🎵","Musique","🎵 Musique","#ff00aa"),
+        ("🧠","Culture","🌐 Culture Générale","#aa00ff"),
+    ]
+    for i,(icon,label,mname,color) in enumerate(stats):
+        with cols[i]:
+            n = csv_row_count(mname)
+            st.markdown(
+                f'<div class="card" style="text-align:center;padding:.9rem">'
+                f'<div style="font-size:1.4rem">{icon}</div>'
+                f'<div style="color:{color};font-family:Orbitron;font-size:.6rem;letter-spacing:2px">{label.upper()}</div>'
+                f'<div style="color:#fff;font-size:1.1rem;font-weight:700">{n} entrées</div>'
+                f'</div>', unsafe_allow_html=True
             )
-            st.session_state.n_players = n_players
-            
-            cols_p = st.columns(n_players)
-            players = []
-            for i in range(n_players):
-                with cols_p[i]:
-                    st.markdown(f'<div style="color:{PLAYER_COLORS[i]};font-weight:700;font-size:0.85rem">'
-                                f'{PLAYER_EMOJIS[i]} Joueur {i+1}</div>', unsafe_allow_html=True)
-                    existing = st.session_state.players[i]["name"] if i < len(st.session_state.players) else ""
-                    name = st.text_input(f"", value=existing,
-                                         placeholder=f"Joueur {i+1}",
-                                         key=f"pname_{i}",
-                                         label_visibility="collapsed")
-                    players.append({"name": name or f"Joueur {i+1}", "score": 0, "wrongs": []})
-            
-            # ── Level ──
-            st.markdown('<div class="section-hdr">🎯 Niveau de difficulté</div>', unsafe_allow_html=True)
-            level_cols = st.columns(4)
-            selected_level = st.session_state.level_name or "🌱 Débutant"
-            for i, (lname, lcfg) in enumerate(LEVELS.items()):
-                with level_cols[i]:
-                    badge_cls = f"badge-{lcfg['key']}"
-                    is_sel = (lname == selected_level)
-                    border = "2px solid" if is_sel else "1px solid"
-                    bg = "rgba(255,255,255,0.05)" if is_sel else "transparent"
-                    st.markdown(
-                        f'<div class="badge-base {badge_cls}" style="border:{border};background:{bg};'
-                        f'text-align:center;padding:0.5rem;width:100%;border-radius:10px;cursor:pointer">'
-                        f'{lname}<br><span style="font-size:0.65rem;opacity:0.7">'
-                        f'⏱{lcfg["time"]}s · {lcfg["qs"]}Q</span></div>',
-                        unsafe_allow_html=True
-                    )
-                    if st.button(f"", key=f"lvl_{lname}", help=lname):
-                        st.session_state.level_name = lname
-                        st.rerun()
-            
-            if not selected_level:
-                st.session_state.level_name = "🌱 Débutant"
-            
-            st.markdown('</div>', unsafe_allow_html=True)
 
-        # ── Game modes ──
-        st.markdown('<div class="quiz-card">', unsafe_allow_html=True)
-        st.markdown('<div class="section-hdr">🎮 Choisissez votre univers</div>', unsafe_allow_html=True)
 
-        mode_cols = st.columns(2)
+# ══════════════════════════════════════════════════════════════
+#  SCREEN: SOLO SETUP
+# ══════════════════════════════════════════════════════════════
+def screen_solo():
+    st.markdown('<div class="main-title" style="font-size:1.8rem">🎯 Mode Solo</div>', unsafe_allow_html=True)
+
+    cl, cc, cr = st.columns([1, 3, 1])
+    with cc:
+        st.markdown('<div class="card">', unsafe_allow_html=True)
+
+        # Level
+        st.markdown('<div class="hdr">🎯 Niveau</div>', unsafe_allow_html=True)
+        lc = st.columns(4)
+        for i, (lname, lcfg) in enumerate(LEVELS.items()):
+            with lc[i]:
+                sel = st.session_state.s_level == lname
+                bdr = "2px solid" if sel else "1px solid"
+                bg  = "rgba(255,255,255,.05)" if sel else "transparent"
+                key_cls = f"badge-{lcfg['key']}"
+                st.markdown(
+                    f'<div style="border:{bdr} {lcfg["color"]};background:{bg};border-radius:10px;'
+                    f'padding:.5rem;text-align:center;color:{lcfg["color"]};'
+                    f'font-family:Orbitron;font-size:.7rem;font-weight:700;letter-spacing:1px">'
+                    f'{lname}<br><span style="opacity:.65;font-size:.6rem">⏱{lcfg["time"]}s · {lcfg["qs"]}Q · ×{lcfg["mult"]}</span>'
+                    f'</div>', unsafe_allow_html=True
+                )
+                if st.button("", key=f"sl_{lname}", help=lname):
+                    st.session_state.s_level = lname
+                    st.rerun()
+
+        # Mode
+        st.markdown('<div class="hdr">🎮 Catégorie</div>', unsafe_allow_html=True)
+        mc = st.columns(2)
         for mi, (mname, mcfg) in enumerate(MODES.items()):
-            with mode_cols[mi % 2]:
-                c1, c2 = st.columns([3,1])
+            with mc[mi % 2]:
+                c1, c2 = st.columns([3, 1])
                 with c1:
+                    n = csv_row_count(mname)
                     st.markdown(
-                        f'<div style="color:{mcfg["color"]};font-weight:700;font-size:1rem">'
+                        f'<div style="color:{mcfg["color"]};font-weight:700;font-size:.95rem">'
                         f'{mcfg["icon"]} {mname.split(" ",1)[1]}</div>'
-                        f'<div style="color:#888;font-size:0.78rem;margin-bottom:0.2rem">{mcfg["desc"]}</div>',
+                        f'<div style="color:#777;font-size:.72rem">{mcfg["desc"]} · {n} entrées</div>',
                         unsafe_allow_html=True
                     )
                 with c2:
-                    if st.button("JOUER", key=f"go_{mname}"):
-                        lvl_cfg = LEVELS[st.session_state.level_name or "🌱 Débutant"]
-                        st.session_state.players = players
-                        st.session_state.game_mode = mname
-                        reset_quiz()
-                        st.session_state.questions = build_questions(
-                            mname, lvl_cfg["key"], lvl_cfg["qs"]
-                        )
-                        st.session_state.screen = "quiz"
-                        st.rerun()
-        
+                    if st.button("▶", key=f"ss_{mname}", use_container_width=True):
+                        lvl = LEVELS[st.session_state.s_level]
+                        qs  = build_questions(mname, lvl["key"], lvl["qs"])
+                        if not qs:
+                            st.error("CSV vide ou introuvable.")
+                        else:
+                            st.session_state.s_mode      = mname
+                            st.session_state.s_questions = qs
+                            st.session_state.s_qi        = 0
+                            st.session_state.s_score     = 0
+                            st.session_state.s_wrongs    = []
+                            st.session_state.s_answered  = False
+                            st.session_state.s_correct   = None
+                            st.session_state.s_timeout   = False
+                            st.session_state.s_qtime     = None
+                            st.session_state.screen      = "solo_quiz"
+                            st.rerun()
+
         st.markdown('</div>', unsafe_allow_html=True)
+        if st.button("← Retour", use_container_width=True):
+            st.session_state.screen = "home"
+            st.rerun()
 
-    # Stats bar
-    st.markdown("<br>", unsafe_allow_html=True)
-    stat_cols = st.columns(5)
-    stats = [
-        ("🔐", "Finance", len(get_df("🔐 Sécurité Financière")), "#00d4ff"),
-        ("🇫🇷", "Français", len(get_df("🇫🇷 Français")), "#ff00ff"),
-        ("🌍", "Monuments", len(get_df("🏛️ Monuments")), "#ffaa00"),
-        ("🎵", "Musique", len(get_df("🎵 Musique")), "#ff00aa"),
-        ("🧠", "Culture", len(get_df("🌐 Culture Générale")), "#aa00ff"),
-    ]
-    for i,(icon,label,count,color) in enumerate(stats):
-        with stat_cols[i]:
-            st.markdown(f'<div class="quiz-card" style="text-align:center;padding:1rem">'
-                        f'<div style="font-size:1.5rem">{icon}</div>'
-                        f'<div style="color:{color};font-family:Orbitron;font-size:0.65rem;letter-spacing:2px">{label.upper()}</div>'
-                        f'<div style="color:#fff;font-size:1.2rem;font-weight:700">{count}</div>'
-                        f'</div>', unsafe_allow_html=True)
 
-# ─── SCREEN: QUIZ ─────────────────────────────────────────────────────────────
-def screen_quiz():
-    qs     = st.session_state.questions
-    qi     = st.session_state.q_index
-    total  = len(qs)
-    lvl    = LEVELS[st.session_state.level_name or "🌱 Débutant"]
-    mode   = st.session_state.game_mode
-    mcfg   = MODES[mode]
-    n_pl   = len(st.session_state.players)
+# ══════════════════════════════════════════════════════════════
+#  SCREEN: SOLO QUIZ
+# ══════════════════════════════════════════════════════════════
+def screen_solo_quiz():
+    qs    = st.session_state.s_questions
+    qi    = st.session_state.s_qi
+    total = len(qs)
+    lvl   = LEVELS[st.session_state.s_level]
+    mode  = st.session_state.s_mode
+    mcfg  = MODES[mode]
 
     if qi >= total:
-        st.session_state.screen = "result"
+        st.session_state.screen = "solo_result"
         st.rerun()
         return
 
     q = qs[qi]
-    cp = st.session_state.players[st.session_state.cur_player]
 
-    # Init timer for this question
-    if st.session_state.q_start_time is None and not st.session_state.answer_given:
-        st.session_state.q_start_time = time.time()
+    if st.session_state.s_qtime is None and not st.session_state.s_answered:
+        st.session_state.s_qtime = time.time()
 
-    # Check timeout
-    tl = time_left()
-    if tl <= 0 and not st.session_state.answer_given:
-        st.session_state.answer_given = True
-        st.session_state.timed_out    = True
-        st.session_state.last_correct = False
-        cp["wrongs"].append({
-            "question": q["question"],
-            "votre_reponse": "⌛ Temps écoulé",
-            "bonne_reponse": q["correct"]
-        })
+    tl = time_left_solo()
+    if tl <= 0 and not st.session_state.s_answered:
+        st.session_state.s_answered = True
+        st.session_state.s_timeout  = True
+        st.session_state.s_correct  = False
+        st.session_state.s_wrongs.append({"question":q["question"],"votre_reponse":"⌛ Temps","bonne_reponse":q["correct"]})
 
-    # ─── Sidebar ───
+    # sidebar
     with st.sidebar:
-        if n_pl > 1:
-            st.markdown('<div class="section-hdr" style="margin-top:0">👥 Scores</div>', unsafe_allow_html=True)
-            for pi, pl in enumerate(st.session_state.players):
-                active = (pi == st.session_state.cur_player)
-                aclass = " active-player" if active else ""
-                st.markdown(
-                    f'<div class="player-row{aclass}">'
-                    f'<div class="player-color" style="background:{PLAYER_COLORS[pi]}"></div>'
-                    f'<div class="player-name">{"▶ " if active else ""}{pl["name"]}</div>'
-                    f'<div class="player-score">{pl["score"]}</div>'
-                    f'</div>', unsafe_allow_html=True
-                )
-        else:
-            st.markdown(f'<div class="player-tag">👤 {cp["name"].upper()}</div>', unsafe_allow_html=True)
-            st.markdown(
-                f'<div class="score-box"><h3>⚡ SCORE</h3>'
-                f'<div class="big">{cp["score"]}/{qi}</div></div>',
-                unsafe_allow_html=True
-            )
-
+        st.markdown(f'<div class="p-tag">👤 {st.session_state.player_name.upper()}</div>', unsafe_allow_html=True)
+        st.markdown(
+            f'<div class="score-box"><h3>⚡ SCORE</h3>'
+            f'<div class="big">{st.session_state.s_score}</div></div>',
+            unsafe_allow_html=True
+        )
         lc = lvl["color"]
         st.markdown(
-            f'<div style="margin-top:0.8rem;padding:0.8rem;background:rgba(0,0,0,0.3);'
-            f'border:1px solid {lc}33;border-radius:10px;text-align:center">'
-            f'<div style="color:{lc};font-family:Orbitron;font-size:0.75rem;letter-spacing:2px">'
-            f'{st.session_state.level_name}</div>'
-            f'<div style="color:#aaa;font-size:0.8rem;margin-top:0.3rem">'
-            f'Q {qi+1}/{total} · ×{lvl["multiplier"]} pts</div>'
+            f'<div style="padding:.7rem;background:rgba(0,0,0,.3);border:1px solid {lc}33;'
+            f'border-radius:10px;text-align:center;margin-bottom:.7rem">'
+            f'<div style="color:{lc};font-family:Orbitron;font-size:.7rem;letter-spacing:2px">'
+            f'{st.session_state.s_level}</div>'
+            f'<div style="color:#aaa;font-size:.75rem">Q {qi+1}/{total} · ×{lvl["mult"]} pts</div>'
             f'</div>', unsafe_allow_html=True
         )
-
-        st.markdown('<div class="progress-lbl" style="margin-top:0.8rem">Progression</div>', unsafe_allow_html=True)
-        st.progress(qi / total if total else 0)
-
+        st.progress(qi / total)
         st.markdown("---")
-        if st.button("🏠 Accueil", use_container_width=True):
+        if st.button("🏠 Accueil"):
             st.session_state.screen = "home"
             st.rerun()
 
-    # ─── Main content ───
-    head_c, timer_c = st.columns([3,1])
-    with head_c:
-        st.markdown(f'<div class="main-title" style="font-size:1.5rem;text-align:left">'
+    # header row
+    hc, tc = st.columns([3, 1])
+    with hc:
+        st.markdown(f'<div class="main-title" style="font-size:1.3rem;text-align:left">'
                     f'{mcfg["icon"]} {mode.split(" ",1)[1]}</div>', unsafe_allow_html=True)
-    with timer_c:
-        if not st.session_state.answer_given:
-            pct_t = tl / lvl["time"]
-            tcls = "timer-green" if pct_t > 0.5 else ("timer-yellow" if pct_t > 0.25 else "timer-red")
-            st.markdown(f'<div style="text-align:right">'
-                        f'<div class="timer-box {tcls}">⏱ {tl}s</div></div>',
-                        unsafe_allow_html=True)
+    with tc:
+        if not st.session_state.s_answered:
+            st.markdown(timer_html(tl, lvl["time"]), unsafe_allow_html=True)
 
-    # Multiplayer turn indicator
-    if n_pl > 1:
-        st.markdown(
-            f'<div style="text-align:center;margin:0.3rem 0;padding:0.5rem;'
-            f'background:rgba({PLAYER_COLORS[st.session_state.cur_player].replace("#","")},0.1);'
-            f'border-radius:8px;color:{PLAYER_COLORS[st.session_state.cur_player]};'
-            f'font-family:Orbitron;font-size:0.9rem;letter-spacing:2px">'
-            f'Tour de : {cp["name"].upper()}</div>',
-            unsafe_allow_html=True
-        )
+    st.progress(qi / total)
+    st.markdown(f'<div style="text-align:center;color:#00d4ff55;font-size:.72rem;letter-spacing:2px">QUESTION {qi+1} / {total}</div>', unsafe_allow_html=True)
 
-    st.progress(qi / total if total else 0)
-    st.markdown(
-        f'<div style="text-align:center;color:#00d4ff66;font-size:0.75rem;'
-        f'letter-spacing:2px">QUESTION {qi+1} / {total}</div>',
-        unsafe_allow_html=True
-    )
-
-    # Question card
-    st.markdown('<div class="question-card">', unsafe_allow_html=True)
+    # question
+    st.markdown('<div class="q-card">', unsafe_allow_html=True)
     if q["prompt"]:
-        st.markdown(f'<div class="question-text">{q["prompt"]}</div>', unsafe_allow_html=True)
-    st.markdown(f'<div class="term-highlight">{q["question"]}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="q-prompt">{q["prompt"]}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="q-term">{q["question"]}</div>', unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # Notification or choices
-    if st.session_state.answer_given:
-        if st.session_state.timed_out:
-            st.markdown(f"""
-            <div class="notif-timeout">
-              <h2>⌛ TEMPS ÉCOULÉ !</h2>
-              <p>La réponse était : <strong style="color:#ffaa00">{q['correct']}</strong></p>
-            </div>""", unsafe_allow_html=True)
-        elif st.session_state.last_correct:
-            pts = lvl["multiplier"]
-            st.markdown(f"""
-            <div class="notif-correct">
-              <h2>✅ CORRECT ! +{pts} pt{'s' if pts>1 else ''}</h2>
-              <p><strong style="color:#00ff88">{q['correct']}</strong></p>
-            </div>""", unsafe_allow_html=True)
+    if st.session_state.s_answered:
+        if st.session_state.s_timeout:
+            kind = "time"
+        elif st.session_state.s_correct:
+            kind = "ok"
         else:
-            st.markdown(f"""
-            <div class="notif-wrong">
-              <h2>❌ INCORRECT</h2>
-              <p>Bonne réponse : <strong style="color:#ff6666">{q['correct']}</strong></p>
-            </div>""", unsafe_allow_html=True)
-
+            kind = "wrong"
+        st.markdown(notif_html(kind, lvl["mult"], q["correct"]), unsafe_allow_html=True)
         if st.button("➡️ Question suivante", use_container_width=True):
-            st.session_state.q_index += 1
-            st.session_state.answer_given  = False
-            st.session_state.last_correct  = None
-            st.session_state.timed_out     = False
-            st.session_state.q_start_time  = None
-            # Rotate players for multiplayer
-            if n_pl > 1:
-                st.session_state.cur_player = (st.session_state.cur_player + 1) % n_pl
+            st.session_state.s_qi      += 1
+            st.session_state.s_answered = False
+            st.session_state.s_correct  = None
+            st.session_state.s_timeout  = False
+            st.session_state.s_qtime    = None
             st.rerun()
     else:
         c1, c2 = st.columns(2)
-        for idx, choice in enumerate(q["choices"]):
+        for idx, ch in enumerate(q["choices"]):
             with (c1 if idx % 2 == 0 else c2):
-                label = f"{'ABCD'[idx]}  {choice}"
-                if st.button(label, key=f"ch_{qi}_{idx}", use_container_width=True):
-                    correct = (choice == q["correct"])
-                    st.session_state.answer_given = True
-                    st.session_state.last_correct = correct
-                    st.session_state.timed_out    = False
-                    if correct:
-                        cp["score"] += lvl["multiplier"]
+                if st.button(f"{'ABCD'[idx]}  {ch}", key=f"sa_{qi}_{idx}", use_container_width=True):
+                    ok = (ch == q["correct"])
+                    st.session_state.s_answered = True
+                    st.session_state.s_correct  = ok
+                    st.session_state.s_timeout  = False
+                    if ok:
+                        st.session_state.s_score += lvl["mult"]
                     else:
-                        cp["wrongs"].append({
-                            "question": q["question"],
-                            "votre_reponse": choice,
-                            "bonne_reponse": q["correct"]
-                        })
+                        st.session_state.s_wrongs.append({"question":q["question"],"votre_reponse":ch,"bonne_reponse":q["correct"]})
                     st.rerun()
-
-        # Auto-rerun for timer countdown
-        if not st.session_state.answer_given and tl > 0:
+        if tl > 0:
             time.sleep(1)
             st.rerun()
 
-# ─── SCREEN: RESULT ───────────────────────────────────────────────────────────
-def screen_result():
-    players  = st.session_state.players
-    total    = len(st.session_state.questions)
-    mode     = st.session_state.game_mode
-    lvl      = LEVELS[st.session_state.level_name or "🌱 Débutant"]
-    n_pl     = len(players)
 
-    sorted_p = sorted(players, key=lambda x: x["score"], reverse=True)
+# ══════════════════════════════════════════════════════════════
+#  SCREEN: SOLO RESULT
+# ══════════════════════════════════════════════════════════════
+def screen_solo_result():
+    lvl   = LEVELS[st.session_state.s_level]
+    total = len(st.session_state.s_questions)
+    score = st.session_state.s_score
+    pct   = int(score / (total * lvl["mult"]) * 100) if total else 0
+    bdg, bc = badge(pct)
 
     with st.sidebar:
-        if st.button("🏠 Accueil", use_container_width=True):
+        if st.button("🏠 Accueil"):
             st.session_state.screen = "home"
             st.rerun()
-        if st.button("🔄 Rejouer", use_container_width=True):
-            reset_quiz()
-            st.session_state.questions = build_questions(
-                mode, lvl["key"], lvl["qs"]
-            )
-            st.session_state.screen = "quiz"
+        if st.button("🔄 Rejouer"):
+            qs = build_questions(st.session_state.s_mode, lvl["key"], lvl["qs"])
+            st.session_state.s_questions = qs
+            st.session_state.s_qi = 0; st.session_state.s_score = 0
+            st.session_state.s_wrongs = []; st.session_state.s_answered = False
+            st.session_state.s_correct = None; st.session_state.s_timeout = False
+            st.session_state.s_qtime = None; st.session_state.screen = "solo_quiz"
             st.rerun()
 
-    col_l, col_c, col_r = st.columns([0.5, 3, 0.5])
-    with col_c:
-        if n_pl == 1:
-            p    = players[0]
-            pct  = int(p["score"] / (total * lvl["multiplier"]) * 100) if total else 0
-            badge, bc = get_badge(pct)
-            st.markdown(f"""
-            <div class="final-card">
-              <h1>🎯 RÉSULTATS FINAUX</h1>
-              <div style="color:#00d4ff88;font-family:Orbitron;font-size:0.8rem;letter-spacing:3px">{p['name'].upper()}</div>
-              <div class="final-score">{p['score']} pts</div>
-              <div style="font-size:1.2rem;margin:0.3rem">{pct}%</div>
-              <div style="color:{bc};font-family:Orbitron;font-size:1.2rem;font-weight:700;
-                           text-shadow:0 0 20px {bc};margin:0.8rem 0">{badge}</div>
-              <div style="color:#666;font-size:0.85rem">{mode} · {st.session_state.level_name}</div>
-            </div>""", unsafe_allow_html=True)
-        else:
-            # Multiplayer podium
-            st.markdown('<div class="final-card">', unsafe_allow_html=True)
-            st.markdown('<h1 style="color:#00ff88;font-family:Orbitron">🏆 CLASSEMENT FINAL</h1>', unsafe_allow_html=True)
-            st.markdown(f'<div style="color:#666;font-size:0.85rem;margin-bottom:1.5rem">{mode} · {st.session_state.level_name}</div>', unsafe_allow_html=True)
-            
-            medals = ["🥇","🥈","🥉","4️⃣"]
-            for rank, pl in enumerate(sorted_p):
-                pi = players.index(pl)
-                st.markdown(
-                    f'<div style="display:flex;align-items:center;gap:1rem;padding:0.8rem 1.2rem;'
-                    f'background:rgba(0,0,0,0.3);border:1px solid {PLAYER_COLORS[pi]}44;'
-                    f'border-radius:12px;margin:0.4rem 0">'
-                    f'<div style="font-size:1.8rem">{medals[rank]}</div>'
-                    f'<div style="color:{PLAYER_COLORS[pi]};font-size:1rem;font-weight:700;flex:1">'
-                    f'{pl["name"]}</div>'
-                    f'<div style="color:#ffaa00;font-family:Orbitron;font-size:1.3rem;font-weight:900">'
-                    f'{pl["score"]} pts</div>'
-                    f'</div>', unsafe_allow_html=True
-                )
-            st.markdown('</div>', unsafe_allow_html=True)
+    cl, cc, cr = st.columns([1, 3, 1])
+    with cc:
+        st.markdown(f"""
+        <div class="final">
+          <h1>🎯 RÉSULTATS</h1>
+          <div style="color:#00d4ff88;font-family:Orbitron;font-size:.75rem;letter-spacing:3px">{st.session_state.player_name.upper()}</div>
+          <div class="f-score">{score} pts</div>
+          <div style="font-size:1.1rem;margin:.2rem">{pct}%</div>
+          <div style="color:{bc};font-family:Orbitron;font-size:1.1rem;font-weight:700;
+                       text-shadow:0 0 18px {bc};margin:.7rem 0">{bdg}</div>
+          <div style="color:#555;font-size:.8rem">{st.session_state.s_mode} · {st.session_state.s_level}</div>
+        </div>""", unsafe_allow_html=True)
 
-        # Stats
-        st.markdown("<br>", unsafe_allow_html=True)
-        sc1,sc2,sc3 = st.columns(3)
-        best = sorted_p[0]
+        sc1, sc2, sc3 = st.columns(3)
         with sc1:
-            st.markdown(f'<div class="quiz-card" style="text-align:center">'
-                        f'<div style="font-size:1.5rem">🏆</div>'
-                        f'<div style="color:#ffaa00;font-family:Orbitron;font-size:0.7rem">MEILLEUR</div>'
-                        f'<div style="color:#fff;font-size:1rem;font-weight:700">{best["name"]}</div>'
-                        f'<div style="color:#ffaa00;font-family:Orbitron">{best["score"]} pts</div>'
-                        f'</div>', unsafe_allow_html=True)
+            good = score // lvl["mult"]
+            st.markdown(f'<div class="card" style="text-align:center"><div style="font-size:1.3rem">✅</div>'
+                        f'<div style="color:#00ff88;font-family:Orbitron;font-size:.65rem">BONNES</div>'
+                        f'<div style="color:#fff;font-size:1.2rem;font-weight:700">{good}</div></div>', unsafe_allow_html=True)
         with sc2:
-            st.markdown(f'<div class="quiz-card" style="text-align:center">'
-                        f'<div style="font-size:1.5rem">📊</div>'
-                        f'<div style="color:#00d4ff;font-family:Orbitron;font-size:0.7rem">QUESTIONS</div>'
-                        f'<div style="color:#fff;font-size:1.3rem;font-weight:700">{total}</div>'
-                        f'</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="card" style="text-align:center"><div style="font-size:1.3rem">📊</div>'
+                        f'<div style="color:#00d4ff;font-family:Orbitron;font-size:.65rem">TOTAL</div>'
+                        f'<div style="color:#fff;font-size:1.2rem;font-weight:700">{total}</div></div>', unsafe_allow_html=True)
         with sc3:
-            tot_wrong = sum(len(p["wrongs"]) for p in players)
-            st.markdown(f'<div class="quiz-card" style="text-align:center">'
-                        f'<div style="font-size:1.5rem">❌</div>'
-                        f'<div style="color:#ff4444;font-family:Orbitron;font-size:0.7rem">ERREURS</div>'
-                        f'<div style="color:#fff;font-size:1.3rem;font-weight:700">{tot_wrong}</div>'
-                        f'</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="card" style="text-align:center"><div style="font-size:1.3rem">❌</div>'
+                        f'<div style="color:#ff4444;font-family:Orbitron;font-size:.65rem">ERREURS</div>'
+                        f'<div style="color:#fff;font-size:1.2rem;font-weight:700">{len(st.session_state.s_wrongs)}</div></div>', unsafe_allow_html=True)
 
-        # Wrong answers per player
-        for pl in players:
-            if pl["wrongs"]:
-                pi = players.index(pl)
-                st.markdown(f'<div class="section-hdr">📖 Révision — {pl["name"]}</div>', unsafe_allow_html=True)
-                for wa in pl["wrongs"][:10]:
-                    st.markdown(f"""
-                    <div style="background:rgba(255,68,68,0.04);border:1px solid rgba(255,68,68,0.2);
-                      border-radius:8px;padding:0.7rem 1rem;margin:0.3rem 0">
-                      <div style="color:#00d4ff;font-weight:700;font-size:0.9rem">{wa['question']}</div>
-                      <div style="color:#ff8888;font-size:0.82rem">Votre réponse : {wa['votre_reponse']}</div>
-                      <div style="color:#00ff88;font-size:0.82rem">✅ {wa['bonne_reponse']}</div>
-                    </div>""", unsafe_allow_html=True)
+        if st.session_state.s_wrongs:
+            st.markdown('<div class="hdr">📖 Révision</div>', unsafe_allow_html=True)
+            for wa in st.session_state.s_wrongs[:15]:
+                st.markdown(f"""
+                <div style="background:rgba(255,68,68,.04);border:1px solid rgba(255,68,68,.18);
+                  border-radius:8px;padding:.65rem .9rem;margin:.25rem 0">
+                  <div style="color:#00d4ff;font-weight:700;font-size:.88rem">{wa['question']}</div>
+                  <div style="color:#ff8888;font-size:.78rem">Votre réponse : {wa['votre_reponse']}</div>
+                  <div style="color:#00ff88;font-size:.78rem">✅ {wa['bonne_reponse']}</div>
+                </div>""", unsafe_allow_html=True)
 
-        st.markdown("<br>", unsafe_allow_html=True)
-        b1, b2 = st.columns(2)
-        with b1:
+        br1, br2 = st.columns(2)
+        with br1:
             if st.button("🔄 Rejouer", use_container_width=True):
-                reset_quiz()
-                st.session_state.questions = build_questions(mode, lvl["key"], lvl["qs"])
-                st.session_state.screen = "quiz"
-                st.rerun()
-        with b2:
-            if st.button("🏠 Changer de mode", use_container_width=True):
-                st.session_state.screen = "home"
+                qs = build_questions(st.session_state.s_mode, lvl["key"], lvl["qs"])
+                st.session_state.s_questions=qs; st.session_state.s_qi=0
+                st.session_state.s_score=0; st.session_state.s_wrongs=[]
+                st.session_state.s_answered=False; st.session_state.s_correct=None
+                st.session_state.s_timeout=False; st.session_state.s_qtime=None
+                st.session_state.screen="solo_quiz"; st.rerun()
+        with br2:
+            if st.button("🏠 Menu", use_container_width=True):
+                st.session_state.screen = "home"; st.rerun()
+
+
+# ══════════════════════════════════════════════════════════════
+#  SCREEN: CREATE ROOM
+# ══════════════════════════════════════════════════════════════
+def screen_room_create():
+    st.markdown('<div class="main-title" style="font-size:1.8rem">🏠 Créer une salle</div>', unsafe_allow_html=True)
+
+    cl, cc, cr = st.columns([1, 3, 1])
+    with cc:
+        st.markdown('<div class="card">', unsafe_allow_html=True)
+
+        if "new_room_code" not in st.session_state:
+            st.session_state.new_room_code = generate_room_code()
+
+        # Level
+        st.markdown('<div class="hdr">🎯 Niveau</div>', unsafe_allow_html=True)
+        if "rc_level" not in st.session_state:
+            st.session_state.rc_level = "🌱 Débutant"
+        lc = st.columns(4)
+        for i, (lname, lcfg) in enumerate(LEVELS.items()):
+            with lc[i]:
+                sel = st.session_state.rc_level == lname
+                bdr = f"2px solid {lcfg['color']}" if sel else f"1px solid {lcfg['color']}55"
+                bg  = "rgba(255,255,255,.05)" if sel else "transparent"
+                st.markdown(
+                    f'<div style="border:{bdr};background:{bg};border-radius:10px;padding:.5rem;'
+                    f'text-align:center;color:{lcfg["color"]};font-family:Orbitron;font-size:.68rem;'
+                    f'font-weight:700">{lname}<br>'
+                    f'<span style="opacity:.6;font-size:.58rem">⏱{lcfg["time"]}s · {lcfg["qs"]}Q</span></div>',
+                    unsafe_allow_html=True
+                )
+                if st.button("", key=f"rcl_{lname}", help=lname):
+                    st.session_state.rc_level = lname
+                    st.rerun()
+
+        # Mode
+        st.markdown('<div class="hdr">🎮 Catégorie</div>', unsafe_allow_html=True)
+        mc = st.columns(2)
+        for mi, (mname, mcfg) in enumerate(MODES.items()):
+            with mc[mi % 2]:
+                c1, c2 = st.columns([3, 1])
+                with c1:
+                    n = csv_row_count(mname)
+                    st.markdown(
+                        f'<div style="color:{mcfg["color"]};font-weight:700;font-size:.9rem">'
+                        f'{mcfg["icon"]} {mname.split(" ",1)[1]}</div>'
+                        f'<div style="color:#666;font-size:.7rem">{n} entrées</div>',
+                        unsafe_allow_html=True
+                    )
+                with c2:
+                    if st.button("▶", key=f"rc_{mname}", use_container_width=True):
+                        code  = st.session_state.new_room_code
+                        level = st.session_state.rc_level
+                        lvl   = LEVELS[level]
+                        qs    = build_questions(mname, lvl["key"], lvl["qs"])
+                        if not qs:
+                            st.error("CSV vide ou introuvable.")
+                        else:
+                            room_create(code, st.session_state.player_name, mname, level)
+                            room_start(code, qs)
+                            st.session_state.room_code = code
+                            st.session_state.screen    = "room_lobby"
+                            # set qtime for host's first question
+                            data = room_load(code)
+                            data[f"qtime_{st.session_state.player_name}_0"] = time.time()
+                            _room_save(code, data)
+                            st.rerun()
+
+        st.markdown('</div>', unsafe_allow_html=True)
+        if st.button("← Retour", use_container_width=True):
+            st.session_state.screen = "home"
+            st.rerun()
+
+
+# ══════════════════════════════════════════════════════════════
+#  SCREEN: JOIN ROOM
+# ══════════════════════════════════════════════════════════════
+def screen_room_join():
+    st.markdown('<div class="main-title" style="font-size:1.8rem">🔗 Rejoindre une salle</div>', unsafe_allow_html=True)
+
+    cl, cc, cr = st.columns([1, 2, 1])
+    with cc:
+        st.markdown('<div class="card">', unsafe_allow_html=True)
+        code = st.text_input("Code de la salle", value=st.session_state.room_code,
+                             placeholder="Ex: A1B2C3", key="join_code_input")
+        code = code.strip().upper()
+
+        if st.button("✅ Rejoindre", use_container_width=True):
+            if not code:
+                st.warning("Entrez un code de salle.")
+            else:
+                data = room_join(code, st.session_state.player_name)
+                if data is None:
+                    st.error("❌ Salle introuvable ou expirée.")
+                else:
+                    st.session_state.room_code = code
+                    # set qtime for this player's first question
+                    data[f"qtime_{st.session_state.player_name}_0"] = time.time()
+                    _room_save(code, data)
+                    st.session_state.screen = "room_lobby"
+                    st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
+        if st.button("← Retour", use_container_width=True):
+            st.session_state.screen = "home"
+            st.rerun()
+
+
+# ══════════════════════════════════════════════════════════════
+#  SCREEN: ROOM LOBBY / QUIZ  (shared for all players)
+# ══════════════════════════════════════════════════════════════
+def screen_room():
+    code  = st.session_state.room_code
+    pname = st.session_state.player_name
+    data  = room_load(code)
+
+    if data is None:
+        st.error("❌ Salle introuvable ou expirée.")
+        if st.button("🏠 Accueil"):
+            st.session_state.screen = "home"
+            st.rerun()
+        return
+
+    pl       = data["players"].get(pname, {"score": 0, "q_index": 0, "done": False, "wrongs": []})
+    qi       = pl.get("q_index", 0)
+    qs       = data.get("questions", [])
+    total    = len(qs)
+    level    = data.get("level", "🌱 Débutant")
+    lvl      = LEVELS.get(level, LEVELS["🌱 Débutant"])
+    mode     = data.get("mode", "")
+    mcfg     = MODES.get(mode, {})
+    all_done = all(p.get("done", False) for p in data["players"].values())
+
+    # ── Shareable URL ──
+    try:
+        base_url = st.get_option("browser.serverAddress") or ""
+    except Exception:
+        base_url = ""
+    # Build share link note
+    share_note = f"?room={code}"
+
+    # ── Sidebar ──
+    with st.sidebar:
+        st.markdown(f'<div class="room-badge"><div class="room-label">Code salle</div>'
+                    f'<div class="room-code">{code}</div>'
+                    f'<div class="room-label">Partagez ce code !</div></div>', unsafe_allow_html=True)
+        st.markdown(f'<div style="color:#ffaa00;font-size:.75rem;text-align:center;margin:.4rem 0">'
+                    f'🔗 URL: {share_note}</div>', unsafe_allow_html=True)
+        st.markdown('<div class="hdr">👥 Joueurs</div>', unsafe_allow_html=True)
+        for pn, pp in sorted(data["players"].items(), key=lambda x: -x[1].get("score",0)):
+            done_icon = "✅ " if pp.get("done") else f"Q{pp.get('q_index',0)+1}/{total} "
+            is_me = pn == pname
+            st.markdown(
+                f'<div class="p-row" style="{"border-color:#00ff88" if is_me else ""}">'
+                f'<div style="color:#00ff88 if is_me else #aaa">{"▶ " if is_me else ""}{pn}</div>'
+                f'<div style="flex:1"></div>'
+                f'<div style="color:#aaa;font-size:.72rem">{done_icon}</div>'
+                f'<div class="p-score">{pp.get("score",0)}</div>'
+                f'</div>', unsafe_allow_html=True
+            )
+        st.markdown("---")
+        if st.button("🏠 Accueil"):
+            st.session_state.screen = "home"
+            st.rerun()
+
+    # ── Finished? ──
+    if pl.get("done") or qi >= total:
+        if all_done:
+            _show_room_result(data, pname, lvl, mode, level)
+            return
+        # waiting for others
+        st.markdown('<div class="main-title" style="font-size:1.6rem">⏳ En attente des autres joueurs…</div>', unsafe_allow_html=True)
+        still_playing = [n for n,p in data["players"].items() if not p.get("done")]
+        st.markdown(
+            f'<div style="text-align:center;color:#aaa;margin-top:1rem">'
+            f'Joueurs restants : {", ".join(still_playing)}</div>', unsafe_allow_html=True
+        )
+        time.sleep(2)
+        st.rerun()
+        return
+
+    q  = qs[qi]
+    tl = time_left_room(data)
+
+    # init qtime if missing
+    qtime_key = f"qtime_{pname}_{qi}"
+    if qtime_key not in data:
+        data[qtime_key] = time.time()
+        _room_save(code, data)
+        tl = lvl["time"]
+
+    # check timeout
+    if tl <= 0:
+        wrong_entry = {"question":q["question"],"votre_reponse":"⌛ Temps","bonne_reponse":q["correct"]}
+        room_answer(code, pname, False, 0, wrong_entry)
+        # set next question timer
+        ndata = room_load(code)
+        if ndata:
+            ndata[f"qtime_{pname}_{qi+1}"] = time.time()
+            _room_save(code, ndata)
+        st.rerun()
+        return
+
+    # header
+    hc, tc = st.columns([3, 1])
+    with hc:
+        icon = mcfg.get("icon","🎮")
+        mname_short = mode.split(" ",1)[1] if " " in mode else mode
+        st.markdown(f'<div class="main-title" style="font-size:1.3rem;text-align:left">{icon} {mname_short}</div>', unsafe_allow_html=True)
+    with tc:
+        st.markdown(timer_html(tl, lvl["time"]), unsafe_allow_html=True)
+
+    st.progress(qi / total if total else 0)
+    st.markdown(f'<div style="text-align:center;color:#00d4ff55;font-size:.72rem;letter-spacing:2px">QUESTION {qi+1} / {total}</div>', unsafe_allow_html=True)
+
+    # question
+    st.markdown('<div class="q-card">', unsafe_allow_html=True)
+    prompt = mcfg.get("prompt","")
+    if prompt:
+        st.markdown(f'<div class="q-prompt">{prompt}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="q-term">{q["question"]}</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    # choices
+    c1, c2 = st.columns(2)
+    for idx, ch in enumerate(q["choices"]):
+        with (c1 if idx % 2 == 0 else c2):
+            if st.button(f"{'ABCD'[idx]}  {ch}", key=f"ra_{qi}_{idx}_{pname}", use_container_width=True):
+                ok = (ch == q["correct"])
+                wrong_entry = None if ok else {"question":q["question"],"votre_reponse":ch,"bonne_reponse":q["correct"]}
+                room_answer(code, pname, ok, lvl["mult"], wrong_entry)
+                ndata = room_load(code)
+                if ndata:
+                    ndata[f"qtime_{pname}_{qi+1}"] = time.time()
+                    _room_save(code, ndata)
                 st.rerun()
 
-# ─── ROUTER ───────────────────────────────────────────────────────────────────
-if   st.session_state.screen == "home":   screen_home()
-elif st.session_state.screen == "quiz":   screen_quiz()
-elif st.session_state.screen == "result": screen_result()
+    # auto countdown
+    if tl > 0:
+        time.sleep(1)
+        st.rerun()
+
+
+def _show_room_result(data, pname, lvl, mode, level):
+    players_sorted = sorted(data["players"].items(), key=lambda x: -x[1].get("score",0))
+    total = len(data.get("questions",[]))
+    medals = ["🥇","🥈","🥉","4️⃣"]
+
+    cl, cc, cr = st.columns([1, 3, 1])
+    with cc:
+        st.markdown('<div class="final">', unsafe_allow_html=True)
+        st.markdown('<h1>🏆 CLASSEMENT FINAL</h1>', unsafe_allow_html=True)
+        st.markdown(f'<div style="color:#666;font-size:.8rem;margin-bottom:1.2rem">{mode} · {level}</div>', unsafe_allow_html=True)
+
+        for rank,(pn,pp) in enumerate(players_sorted):
+            sc  = pp.get("score",0)
+            pct = int(sc/(total*lvl["mult"])*100) if total else 0
+            bdg, bc = badge(pct)
+            is_me   = pn == pname
+            st.markdown(
+                f'<div style="display:flex;align-items:center;gap:.9rem;padding:.75rem 1.1rem;'
+                f'background:rgba(0,0,0,.3);border:1px solid {"#00ff88" if is_me else "#333"};'
+                f'border-radius:12px;margin:.35rem 0">'
+                f'<div style="font-size:1.6rem">{medals[min(rank,3)]}</div>'
+                f'<div style="flex:1;color:{"#00ff88" if is_me else "#fff"};font-weight:700">{pn}</div>'
+                f'<div style="color:#666;font-size:.75rem">{pct}%</div>'
+                f'<div style="color:#ffaa00;font-family:Orbitron;font-size:1.1rem;font-weight:900">{sc} pts</div>'
+                f'</div>', unsafe_allow_html=True
+            )
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        # my wrongs
+        my_wrongs = data["players"].get(pname,{}).get("wrongs",[])
+        if my_wrongs:
+            st.markdown('<div class="hdr">📖 Votre révision</div>', unsafe_allow_html=True)
+            for wa in my_wrongs[:12]:
+                st.markdown(f"""
+                <div style="background:rgba(255,68,68,.04);border:1px solid rgba(255,68,68,.16);
+                  border-radius:8px;padding:.6rem .85rem;margin:.22rem 0">
+                  <div style="color:#00d4ff;font-weight:700;font-size:.85rem">{wa['question']}</div>
+                  <div style="color:#ff8888;font-size:.75rem">Vous : {wa['votre_reponse']}</div>
+                  <div style="color:#00ff88;font-size:.75rem">✅ {wa['bonne_reponse']}</div>
+                </div>""", unsafe_allow_html=True)
+
+        if st.button("🏠 Retour au menu", use_container_width=True):
+            st.session_state.screen = "home"
+            st.rerun()
+
+
+# ══════════════════════════════════════════════════════════════
+#  ROUTER
+# ══════════════════════════════════════════════════════════════
+s = st.session_state.screen
+if   s == "home":         screen_home()
+elif s == "solo":         screen_solo()
+elif s == "solo_quiz":    screen_solo_quiz()
+elif s == "solo_result":  screen_solo_result()
+elif s == "room_create":  screen_room_create()
+elif s == "room_join":    screen_room_join()
+elif s in ("room_lobby","room_quiz","room_result"): screen_room()
+else:
+    st.session_state.screen = "home"
+    st.rerun()
