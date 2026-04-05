@@ -20,6 +20,26 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+# Force sidebar ALWAYS visible + hamburger always shown
+st.markdown("""
+<style>
+/* Always show the sidebar toggle button (3 bars) */
+[data-testid="collapsedControl"] {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+/* Keep sidebar open width stable */
+[data-testid="stSidebar"][aria-expanded="false"] {
+    min-width: 260px !important;
+    max-width: 260px !important;
+}
+section[data-testid="stSidebar"] {
+    min-width: 260px;
+}
+</style>
+""", unsafe_allow_html=True)
+
 # ══════════════════════════════════════════════════════════════════════════════
 #  MEGA CSS
 # ══════════════════════════════════════════════════════════════════════════════
@@ -27,46 +47,42 @@ st.markdown(r"""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600;700&display=swap');
 
-/* ── Reset & base ── */
 html,body,[class*="css"]{font-family:'Rajdhani',sans-serif;}
 
-/* ── Background: animated mesh + particles ── */
 .stApp{
   background:
-    radial-gradient(ellipse 80% 60% at 20% 10%, rgba(0,212,255,.06) 0%, transparent 60%),
-    radial-gradient(ellipse 60% 50% at 80% 80%, rgba(255,0,255,.05) 0%, transparent 55%),
-    radial-gradient(ellipse 50% 40% at 50% 50%, rgba(0,255,136,.03) 0%, transparent 60%),
+    radial-gradient(ellipse 80% 60% at 20% 10%, rgba(0,212,255,.07) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 50% at 80% 80%, rgba(255,0,255,.06) 0%, transparent 55%),
+    radial-gradient(ellipse 50% 40% at 50% 50%, rgba(0,255,136,.04) 0%, transparent 60%),
     linear-gradient(160deg, #030312 0%, #07091e 40%, #030b18 100%);
-  min-height:100vh;
-  overflow-x:hidden;
+  min-height:100vh;overflow-x:hidden;
 }
-
-/* ── Floating grid overlay ── */
 .stApp::before{
-  content:'';
-  position:fixed;inset:0;
+  content:'';position:fixed;inset:0;
   background-image:
-    linear-gradient(rgba(0,212,255,.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0,212,255,.04) 1px, transparent 1px);
-  background-size:60px 60px;
+    linear-gradient(rgba(0,212,255,.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,212,255,.045) 1px, transparent 1px);
+  background-size:55px 55px;
   pointer-events:none;z-index:0;
 }
 
-/* ── Sidebar ── */
+/* ── SIDEBAR — always visible, always styled ── */
 [data-testid="stSidebar"]{
-  background:linear-gradient(180deg,#08091c 0%,#040410 100%);
-  border-right:1px solid rgba(0,212,255,.15);
-  box-shadow:4px 0 30px rgba(0,0,0,.6);
+  background:linear-gradient(180deg,#09091f 0%,#040412 100%) !important;
+  border-right:2px solid rgba(0,212,255,.2) !important;
+  box-shadow:4px 0 35px rgba(0,0,0,.7);
+  min-width:260px !important;
 }
+/* Hamburger (3 bars) always bright */
+[data-testid="collapsedControl"] svg{stroke:#00d4ff !important;opacity:1 !important;}
+button[kind="header"]{opacity:1 !important;}
 [data-testid="stSidebar"] .stButton>button{
-  background:linear-gradient(135deg,rgba(0,212,255,.08),rgba(0,0,0,.6));
-  border:1px solid rgba(0,212,255,.25);
-  color:#c8eeff;margin-bottom:.3rem;
+  background:linear-gradient(135deg,rgba(0,212,255,.09),rgba(0,0,0,.6));
+  border:1px solid rgba(0,212,255,.28);color:#c8eeff;margin-bottom:.3rem;
 }
 [data-testid="stSidebar"] .stButton>button:hover{
-  background:linear-gradient(135deg,rgba(0,212,255,.18),rgba(255,0,255,.08));
-  border-color:#00d4ff;color:#fff;
-  box-shadow:0 0 15px rgba(0,212,255,.3);
+  background:linear-gradient(135deg,rgba(0,212,255,.2),rgba(255,0,255,.1));
+  border-color:#00d4ff;color:#fff;box-shadow:0 0 18px rgba(0,212,255,.35);
 }
 
 /* ── Title ── */
@@ -196,30 +212,126 @@ html,body,[class*="css"]{font-family:'Rajdhani',sans-serif;}
 .notif::after{content:'';position:absolute;bottom:0;left:0;right:0;height:3px;
   background:linear-gradient(90deg,transparent,currentColor,transparent);}
 .n-ok{
-  background:linear-gradient(135deg,rgba(0,255,136,.12),rgba(0,180,80,.05));
+  background:linear-gradient(135deg,rgba(0,255,136,.15),rgba(0,180,80,.07));
   border:2px solid #00ff88;
-  box-shadow:0 0 50px rgba(0,255,136,.35),0 0 100px rgba(0,255,136,.1);
+  box-shadow:0 0 60px rgba(0,255,136,.5),0 0 120px rgba(0,255,136,.15);
   animation:popIn .4s cubic-bezier(.34,1.56,.64,1);
 }
 .n-wrong{
-  background:linear-gradient(135deg,rgba(255,50,50,.12),rgba(180,0,0,.05));
+  background:linear-gradient(135deg,rgba(255,50,50,.15),rgba(180,0,0,.07));
   border:2px solid #ff4444;
-  box-shadow:0 0 50px rgba(255,68,68,.35),0 0 100px rgba(255,68,68,.1);
+  box-shadow:0 0 60px rgba(255,68,68,.5),0 0 120px rgba(255,68,68,.15);
   animation:shake .45s ease;
 }
 .n-time{
-  background:linear-gradient(135deg,rgba(255,170,0,.12),rgba(180,80,0,.05));
+  background:linear-gradient(135deg,rgba(255,170,0,.15),rgba(180,80,0,.07));
   border:2px solid #ffaa00;
-  box-shadow:0 0 50px rgba(255,170,0,.35);
+  box-shadow:0 0 60px rgba(255,170,0,.5);
   animation:popIn .4s ease;
 }
-@keyframes popIn{0%{transform:scale(.65);opacity:0}70%{transform:scale(1.06)}100%{transform:scale(1);opacity:1}}
-@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-10px)}40%{transform:translateX(10px)}60%{transform:translateX(-7px)}80%{transform:translateX(7px)}}
-.notif h2{font-family:'Orbitron',monospace;font-size:1.4rem;margin:0;}
-.n-ok  h2{color:#00ff88;text-shadow:0 0 20px #00ff88;}
-.n-wrong h2{color:#ff4444;text-shadow:0 0 20px #ff4444;}
-.n-time h2{color:#ffaa00;text-shadow:0 0 20px #ffaa00;}
+@keyframes popIn{0%{transform:scale(.6);opacity:0}70%{transform:scale(1.07)}100%{transform:scale(1);opacity:1}}
+@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-12px)}40%{transform:translateX(12px)}60%{transform:translateX(-8px)}80%{transform:translateX(8px)}}
+.notif h2{font-family:'Orbitron',monospace;font-size:1.5rem;margin:0;}
+.n-ok  h2{color:#00ff88;text-shadow:0 0 25px #00ff88;}
+.n-wrong h2{color:#ff4444;text-shadow:0 0 25px #ff4444;}
+.n-time h2{color:#ffaa00;text-shadow:0 0 25px #ffaa00;}
 .notif p{color:#ccc;font-size:.95rem;margin:.4rem 0 0;}
+.notif .correct-reveal{
+  color:#00ff88;font-family:'Orbitron',monospace;font-size:1.1rem;font-weight:700;
+  margin:.6rem 0 0;text-shadow:0 0 15px rgba(0,255,136,.6);
+  background:rgba(0,255,136,.08);border:1px solid rgba(0,255,136,.3);
+  border-radius:8px;padding:.4rem .8rem;display:inline-block;
+}
+
+/* ── ANSWER BUTTONS — colored when answered ── */
+.ans-correct{
+  background:linear-gradient(135deg,rgba(0,255,136,.25),rgba(0,180,80,.12)) !important;
+  border:2px solid #00ff88 !important;color:#00ff88 !important;
+  box-shadow:0 0 25px rgba(0,255,136,.45),0 0 50px rgba(0,255,136,.1) !important;
+  font-weight:900 !important;
+  animation:popIn .4s cubic-bezier(.34,1.56,.64,1);
+}
+.ans-wrong{
+  background:linear-gradient(135deg,rgba(255,50,50,.2),rgba(180,0,0,.1)) !important;
+  border:2px solid #ff4444 !important;color:#ff4444 !important;
+  box-shadow:0 0 25px rgba(255,68,68,.4) !important;
+  animation:shake .4s ease;
+}
+.ans-reveal{
+  background:linear-gradient(135deg,rgba(0,255,136,.15),rgba(0,0,0,.5)) !important;
+  border:2px dashed #00ff88 !important;color:#00ff88 !important;
+  opacity:.85;
+}
+.ans-dim{opacity:.35;}
+
+/* ── CELEBRATION overlay ── */
+.celebration-wrap{
+  position:relative;text-align:center;padding:2rem;
+  overflow:hidden;
+}
+.genius-banner{
+  font-family:'Orbitron',monospace;font-size:3.5rem;font-weight:900;
+  background:linear-gradient(90deg,#ffaa00,#ff00ff,#00ff88,#00d4ff,#ffaa00);
+  background-size:400%;
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  animation:gs 2s ease infinite,zoomIn .6s cubic-bezier(.34,1.56,.64,1);
+  text-shadow:none;
+  filter:drop-shadow(0 0 30px rgba(255,170,0,.5));
+  display:block;margin-bottom:.5rem;
+}
+.passable-banner{
+  font-family:'Orbitron',monospace;font-size:2.2rem;font-weight:700;
+  color:#00d4ff;text-shadow:0 0 30px rgba(0,212,255,.7);
+  animation:zoomIn .6s cubic-bezier(.34,1.56,.64,1);
+  display:block;margin-bottom:.5rem;
+}
+@keyframes zoomIn{0%{transform:scale(0);opacity:0}80%{transform:scale(1.1)}100%{transform:scale(1);opacity:1}}
+@keyframes gs{0%,100%{background-position:0%}50%{background-position:100%}}
+
+/* ── Confetti particles (CSS only) ── */
+.confetti-container{
+  position:relative;height:80px;overflow:hidden;margin:.5rem 0;
+}
+.confetti-piece{
+  position:absolute;width:10px;height:10px;border-radius:2px;
+  animation:confettiFall 2.5s ease-in infinite;
+}
+.confetti-piece:nth-child(1) {left:5%;background:#00ff88;animation-delay:0s;animation-duration:2.2s;}
+.confetti-piece:nth-child(2) {left:15%;background:#ff00ff;animation-delay:.2s;animation-duration:1.9s;border-radius:50%;}
+.confetti-piece:nth-child(3) {left:25%;background:#ffaa00;animation-delay:.4s;animation-duration:2.4s;}
+.confetti-piece:nth-child(4) {left:35%;background:#00d4ff;animation-delay:.1s;animation-duration:2s;border-radius:50%;}
+.confetti-piece:nth-child(5) {left:45%;background:#ff3388;animation-delay:.3s;animation-duration:2.1s;}
+.confetti-piece:nth-child(6) {left:55%;background:#00ff88;animation-delay:.5s;animation-duration:2.3s;border-radius:50%;}
+.confetti-piece:nth-child(7) {left:65%;background:#ffaa00;animation-delay:.15s;animation-duration:1.8s;}
+.confetti-piece:nth-child(8) {left:75%;background:#ff00ff;animation-delay:.35s;animation-duration:2.5s;border-radius:50%;}
+.confetti-piece:nth-child(9) {left:85%;background:#00d4ff;animation-delay:.25s;animation-duration:2s;}
+.confetti-piece:nth-child(10){left:92%;background:#ff3388;animation-delay:.45s;animation-duration:2.2s;border-radius:50%;}
+@keyframes confettiFall{
+  0%{top:-20px;transform:rotate(0deg) scale(1);}
+  50%{transform:rotate(180deg) scale(.8);}
+  100%{top:100px;transform:rotate(360deg) scale(.4);opacity:0;}
+}
+
+/* ── Star burst ── */
+.stars-burst{
+  position:relative;height:60px;margin:.3rem 0;
+}
+.star{
+  position:absolute;font-size:1.8rem;
+  animation:starPop 1s cubic-bezier(.34,1.56,.64,1) forwards;
+  opacity:0;
+}
+.star:nth-child(1){left:10%;animation-delay:.0s;}
+.star:nth-child(2){left:25%;animation-delay:.15s;}
+.star:nth-child(3){left:40%;animation-delay:.05s;}
+.star:nth-child(4){left:55%;animation-delay:.2s;}
+.star:nth-child(5){left:70%;animation-delay:.1s;}
+.star:nth-child(6){left:85%;animation-delay:.25s;}
+@keyframes starPop{
+  0%{transform:scale(0) rotate(0deg);opacity:0;}
+  60%{transform:scale(1.4) rotate(20deg);opacity:1;}
+  100%{transform:scale(1) rotate(-10deg);opacity:1;}
+}
 
 /* ── Score box ── */
 .score-box{
@@ -573,7 +685,7 @@ DEFAULTS = {
     "room_code":"",
     "s_mode":None,"s_level":"🌱 Débutant","s_questions":[],"s_qi":0,
     "s_score":0,"s_wrongs":[],"s_answered":False,"s_correct":None,
-    "s_timeout":False,"s_qtime":None,
+    "s_timeout":False,"s_qtime":None,"s_chosen":None,
     "rc_level":"🌱 Débutant",
     "new_code": None,
     "motivation_idx": random.randint(0, len(MOTIVATIONS)-1),
@@ -611,14 +723,105 @@ def timer_html(tl, total):
     return f'<div style="text-align:right"><div class="timer {cls}">⏱ {tl}s</div></div>'
 
 def notif_html(kind, pts, ans):
-    if kind=="ok":    return f'<div class="notif n-ok"><h2>✅ CORRECT ! +{pts} pt{"s" if pts>1 else ""}</h2><p><strong style="color:#00ff88">{ans}</strong></p></div>'
-    if kind=="wrong": return f'<div class="notif n-wrong"><h2>❌ INCORRECT</h2><p>Bonne réponse : <strong style="color:#ff8888">{ans}</strong></p></div>'
-    return f'<div class="notif n-time"><h2>⌛ TEMPS ÉCOULÉ !</h2><p>La réponse était : <strong style="color:#ffaa00">{ans}</strong></p></div>'
+    """Notification + bonne réponse toujours affichée."""
+    if kind == "ok":
+        return (
+            f'<div class="notif n-ok">'
+            f'<h2>✅ BONNE RÉPONSE ! +{pts} pt{"s" if pts>1 else ""}</h2>'
+            f'<div class="correct-reveal">✔ {ans}</div>'
+            f'</div>'
+        )
+    if kind == "wrong":
+        return (
+            f'<div class="notif n-wrong">'
+            f'<h2>❌ MAUVAISE RÉPONSE</h2>'
+            f'<p style="color:#ff8888;margin:.3rem 0">Ce n\'était pas la bonne réponse.</p>'
+            f'<div class="correct-reveal">✔ Bonne réponse : {ans}</div>'
+            f'</div>'
+        )
+    # timeout
+    return (
+        f'<div class="notif n-time">'
+        f'<h2>⌛ TEMPS ÉCOULÉ !</h2>'
+        f'<p style="color:#ffcc88;margin:.3rem 0">Trop lent cette fois !</p>'
+        f'<div class="correct-reveal">✔ La réponse était : {ans}</div>'
+        f'</div>'
+    )
+
+def answer_buttons_html(choices, correct, chosen, qi):
+    """Return colored HTML buttons showing right/wrong after answer."""
+    html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin:.5rem 0">'
+    for idx, ch in enumerate(choices):
+        letter = "ABCD"[idx]
+        if ch == correct:
+            css = "ans-correct"
+            icon = "✅ "
+        elif ch == chosen:
+            css = "ans-wrong"
+            icon = "❌ "
+        else:
+            css = "ans-dim"
+            icon = ""
+        html += (
+            f'<div class="stButton" style="pointer-events:none">'
+            f'<button class="{css}" style="width:100%;padding:.8rem;border-radius:12px;'
+            f'font-family:Rajdhani,sans-serif;font-size:1rem;font-weight:700;cursor:default">'
+            f'{icon}{letter}  {ch}</button></div>'
+        )
+    html += '</div>'
+    return html
+
+def celebration_html(pct, player_name):
+    """Big celebration message based on score percentage."""
+    if pct >= 80:
+        return f"""
+        <div class="celebration-wrap">
+          <div class="confetti-container">
+            {''.join(f'<div class="confetti-piece"></div>' for _ in range(10))}
+          </div>
+          <div class="stars-burst">
+            <div class="star">⭐</div><div class="star">🌟</div><div class="star">✨</div>
+            <div class="star">🌟</div><div class="star">⭐</div><div class="star">✨</div>
+          </div>
+          <span class="genius-banner">🏆 WOW !</span>
+          <div style="font-family:Orbitron,monospace;font-size:1.4rem;color:#00ff88;
+                      text-shadow:0 0 20px rgba(0,255,136,.7);margin:.4rem 0">
+            {player_name.upper()}, TU ES UN GÉNIE !
+          </div>
+          <div style="color:#ffcc66;font-size:1rem;margin-top:.3rem">
+            Score incroyable de {pct}% — Tu domines le classement ! 🎉
+          </div>
+          <div class="confetti-container">
+            {''.join(f'<div class="confetti-piece"></div>' for _ in range(10))}
+          </div>
+        </div>"""
+    elif pct >= 50:
+        return f"""
+        <div class="celebration-wrap">
+          <span class="passable-banner">👏 PAS MAL !</span>
+          <div style="font-family:Orbitron,monospace;font-size:1rem;color:#00d4ff;
+                      text-shadow:0 0 15px rgba(0,212,255,.6);margin:.4rem 0">
+            {player_name.upper()}, CONTINUE COMME ÇA !
+          </div>
+          <div style="color:#88aaff;font-size:.95rem;margin-top:.3rem">
+            {pct}% — Tu progresses, la légende est en toi. 💪
+          </div>
+        </div>"""
+    else:
+        return f"""
+        <div class="celebration-wrap">
+          <div style="font-family:Orbitron,monospace;font-size:1.8rem;font-weight:700;
+                      color:#ffaa00;text-shadow:0 0 20px rgba(255,170,0,.6);
+                      animation:zoomIn .5s ease">📚 À RETRAVAILLER</div>
+          <div style="color:#aaa;font-size:.95rem;margin:.5rem 0">
+            {pct}% — Ne lâche pas, {player_name} ! Chaque erreur est une leçon. 🔥
+          </div>
+        </div>"""
 
 def badge(pct):
-    if pct>=90: return "🏆 LÉGENDAIRE","#00ff88"
-    if pct>=70: return "⭐ EXPERT","#ffaa00"
-    if pct>=50: return "👍 BIEN","#00d4ff"
+    if pct >= 90: return "🏆 LÉGENDAIRE","#00ff88"
+    if pct >= 70: return "⭐ EXPERT","#ffaa00"
+    if pct >= 50: return "👍 BIEN","#00d4ff"
     return "📚 À REVOIR","#ff4444"
 
 def prog_html(qi, total):
@@ -694,15 +897,11 @@ def render_sidebar():
                     st.session_state.s_score=0; st.session_state.s_wrongs=[]
                     st.session_state.s_answered=False; st.session_state.s_correct=None
                     st.session_state.s_timeout=False; st.session_state.s_qtime=None
+                    st.session_state.s_chosen=None
                     goto("solo_quiz")
         if s not in ("home","solo","room_create","room_join"):
             if st.button("🎮 Changer de mode", use_container_width=True, key="nav_mode"):
                 goto("solo")
-        if s == "solo_quiz":
-            qi_now = st.session_state.s_qi
-            total_now = len(st.session_state.s_questions)
-            st.markdown(f'<div style="color:#555;font-size:.72rem;text-align:center;margin-top:.4rem">'
-                        f'⌛ +10s vs v2 — {qi_now}/{total_now} répondues</div>', unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════════════════════════════
 #  LEVEL SELECTOR (real clickable buttons)
@@ -858,7 +1057,8 @@ def screen_solo_quiz():
         st.session_state.s_qtime=time.time()
     tl=tl_solo()
     if tl<=0 and not st.session_state.s_answered:
-        st.session_state.s_answered=True; st.session_state.s_timeout=True; st.session_state.s_correct=False
+        st.session_state.s_answered=True; st.session_state.s_timeout=True
+        st.session_state.s_correct=False; st.session_state.s_chosen="⌛ Temps"
         st.session_state.s_wrongs.append({"question":q["question"],"votre_reponse":"⌛","bonne_reponse":q["correct"]})
 
     # Top bar
@@ -868,30 +1068,40 @@ def screen_solo_quiz():
     with tc:
         if not st.session_state.s_answered:
             st.markdown(timer_html(tl,lvl["time"]), unsafe_allow_html=True)
+        else:
+            # Show score change
+            delta = f"+{lvl['mult']}" if st.session_state.s_correct else "±0"
+            color = "#00ff88" if st.session_state.s_correct else "#ff4444"
+            st.markdown(f'<div style="text-align:right;font-family:Orbitron,monospace;font-size:1.5rem;font-weight:900;color:{color};text-shadow:0 0 15px {color}">{delta}</div>', unsafe_allow_html=True)
 
     st.markdown(prog_html(qi,total), unsafe_allow_html=True)
     st.markdown(f'<div style="text-align:center;color:#00d4ff44;font-size:.7rem;letter-spacing:2px">QUESTION {qi+1} / {total}</div>', unsafe_allow_html=True)
 
-    # Question
+    # Question card
     st.markdown('<div class="q-card">', unsafe_allow_html=True)
     if q["prompt"]: st.markdown(f'<div class="q-prompt">{q["prompt"]}</div>', unsafe_allow_html=True)
     st.markdown(f'<div class="q-term">{q["question"]}</div>', unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
     if st.session_state.s_answered:
+        # 1) Colored answer buttons showing right/wrong
+        st.markdown(answer_buttons_html(q["choices"], q["correct"], st.session_state.s_chosen, qi), unsafe_allow_html=True)
+        # 2) Notification with correct answer
         kind = "time" if st.session_state.s_timeout else ("ok" if st.session_state.s_correct else "wrong")
         st.markdown(notif_html(kind, lvl["mult"], q["correct"]), unsafe_allow_html=True)
         if st.button("➡️ Question suivante", use_container_width=True, key="solo_next"):
             st.session_state.s_qi+=1; st.session_state.s_answered=False
             st.session_state.s_correct=None; st.session_state.s_timeout=False
-            st.session_state.s_qtime=None; st.rerun()
+            st.session_state.s_qtime=None; st.session_state.s_chosen=None
+            st.rerun()
     else:
         c1,c2=st.columns(2)
         for idx,ch in enumerate(q["choices"]):
             with (c1 if idx%2==0 else c2):
                 if st.button(f"{'ABCD'[idx]}  {ch}", key=f"sa_{qi}_{idx}", use_container_width=True):
                     ok=(ch==q["correct"])
-                    st.session_state.s_answered=True; st.session_state.s_correct=ok; st.session_state.s_timeout=False
+                    st.session_state.s_answered=True; st.session_state.s_correct=ok
+                    st.session_state.s_timeout=False; st.session_state.s_chosen=ch
                     if ok: st.session_state.s_score+=lvl["mult"]
                     else: st.session_state.s_wrongs.append({"question":q["question"],"votre_reponse":ch,"bonne_reponse":q["correct"]})
                     st.rerun()
@@ -905,42 +1115,61 @@ def screen_solo_result():
     lvl=LEVELS[st.session_state.s_level]; total=len(st.session_state.s_questions)
     score=st.session_state.s_score; pct=int(score/(total*lvl["mult"])*100) if total else 0
     bdg,bc=badge(pct)
+    player=st.session_state.player_name or "Champion"
 
-    cl,cc,cr=st.columns([1,3,1])
+    cl,cc,cr=st.columns([0.5,4,0.5])
     with cc:
+        # ── BIG CELEBRATION FIRST ──
+        st.markdown(celebration_html(pct, player), unsafe_allow_html=True)
+
+        # ── Score card ──
         st.markdown(f"""
-        <div class="final">
-          <h1>🎯 RÉSULTATS</h1>
-          <div style="color:#00d4ff88;font-family:Orbitron;font-size:.75rem;letter-spacing:3px">{st.session_state.player_name.upper()}</div>
+        <div class="final" style="margin-top:1rem">
+          <h1>🎯 RÉSULTATS FINAUX</h1>
+          <div style="color:#00d4ff77;font-family:Orbitron;font-size:.75rem;letter-spacing:3px;margin:.3rem 0">{player.upper()}</div>
           <div class="f-score">{score} pts</div>
-          <div style="font-size:1.1rem;color:#aaa;margin:.2rem">{pct}%</div>
-          <div style="color:{bc};font-family:Orbitron;font-size:1.1rem;font-weight:700;text-shadow:0 0 18px {bc};margin:.7rem 0">{bdg}</div>
+          <div style="font-size:1.2rem;color:#aaa;margin:.2rem">{pct}%</div>
+          <div style="color:{bc};font-family:Orbitron;font-size:1.2rem;font-weight:700;
+                       text-shadow:0 0 20px {bc};margin:.8rem 0">{bdg}</div>
           <div style="color:#444;font-size:.78rem">{st.session_state.s_mode} · {st.session_state.s_level}</div>
         </div>""", unsafe_allow_html=True)
 
+        # ── Stats ──
         sc1,sc2,sc3=st.columns(3)
         good=score//max(lvl["mult"],1)
-        with sc1: st.markdown(f'<div class="stat-card"><div style="font-size:1.3rem">✅</div><div style="color:#00ff88;font-family:Orbitron;font-size:.6rem">BONNES</div><div style="color:#fff;font-size:1.2rem;font-weight:700">{good}</div></div>', unsafe_allow_html=True)
-        with sc2: st.markdown(f'<div class="stat-card"><div style="font-size:1.3rem">📊</div><div style="color:#00d4ff;font-family:Orbitron;font-size:.6rem">TOTAL</div><div style="color:#fff;font-size:1.2rem;font-weight:700">{total}</div></div>', unsafe_allow_html=True)
-        with sc3: st.markdown(f'<div class="stat-card"><div style="font-size:1.3rem">❌</div><div style="color:#ff4444;font-family:Orbitron;font-size:.6rem">ERREURS</div><div style="color:#fff;font-size:1.2rem;font-weight:700">{len(st.session_state.s_wrongs)}</div></div>', unsafe_allow_html=True)
+        wrong_count=len(st.session_state.s_wrongs)
+        with sc1: st.markdown(f'<div class="stat-card"><div style="font-size:1.5rem">✅</div><div style="color:#00ff88;font-family:Orbitron;font-size:.6rem;letter-spacing:1px">BONNES</div><div style="color:#fff;font-size:1.4rem;font-weight:700">{good}</div></div>', unsafe_allow_html=True)
+        with sc2: st.markdown(f'<div class="stat-card"><div style="font-size:1.5rem">📊</div><div style="color:#00d4ff;font-family:Orbitron;font-size:.6rem;letter-spacing:1px">TOTAL</div><div style="color:#fff;font-size:1.4rem;font-weight:700">{total}</div></div>', unsafe_allow_html=True)
+        with sc3: st.markdown(f'<div class="stat-card"><div style="font-size:1.5rem">❌</div><div style="color:#ff4444;font-family:Orbitron;font-size:.6rem;letter-spacing:1px">ERREURS</div><div style="color:#fff;font-size:1.4rem;font-weight:700">{wrong_count}</div></div>', unsafe_allow_html=True)
 
+        # ── Révision ──
         if st.session_state.s_wrongs:
             st.markdown('<div class="hdr">📖 Révision — Vos erreurs</div>', unsafe_allow_html=True)
             for wa in st.session_state.s_wrongs[:15]:
-                st.markdown(f'<div style="background:rgba(255,68,68,.04);border:1px solid rgba(255,68,68,.15);border-radius:8px;padding:.6rem .9rem;margin:.22rem 0"><div style="color:#00d4ff;font-weight:700;font-size:.88rem">{wa["question"]}</div><div style="color:#ff8888;font-size:.75rem">Vous : {wa["votre_reponse"]}</div><div style="color:#00ff88;font-size:.75rem">✅ {wa["bonne_reponse"]}</div></div>', unsafe_allow_html=True)
+                st.markdown(
+                    f'<div style="background:rgba(255,68,68,.05);border:1px solid rgba(255,68,68,.18);'
+                    f'border-radius:10px;padding:.7rem 1rem;margin:.28rem 0">'
+                    f'<div style="color:#00d4ff;font-weight:700;font-size:.9rem">❓ {wa["question"]}</div>'
+                    f'<div style="color:#ff8888;font-size:.78rem;margin-top:.2rem">Votre réponse : {wa["votre_reponse"]}</div>'
+                    f'<div style="color:#00ff88;font-size:.82rem;margin-top:.15rem">✅ Bonne réponse : <strong>{wa["bonne_reponse"]}</strong></div>'
+                    f'</div>', unsafe_allow_html=True
+                )
 
+        # ── Actions ──
+        st.markdown("<br>", unsafe_allow_html=True)
         br1,br2=st.columns(2)
         with br1:
-            if st.button("🔄 Rejouer", use_container_width=True, key="res_replay"):
+            if st.button("🔄 Rejouer même catégorie", use_container_width=True, key="res_replay"):
                 qs=build_questions(st.session_state.s_mode,lvl["key"],lvl["qs"])
                 if qs:
                     st.session_state.s_questions=qs;st.session_state.s_qi=0
                     st.session_state.s_score=0;st.session_state.s_wrongs=[]
                     st.session_state.s_answered=False;st.session_state.s_correct=None
                     st.session_state.s_timeout=False;st.session_state.s_qtime=None
+                    st.session_state.s_chosen=None
                     goto("solo_quiz")
         with br2:
-            if st.button("🎮 Autre catégorie", use_container_width=True, key="res_mode"):
+            if st.button("🎮 Changer de catégorie", use_container_width=True, key="res_mode"):
                 goto("solo")
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -1103,22 +1332,30 @@ def screen_room_result(data, pname, lvl, mode, level):
     total=len(data.get("questions",[]))
     medals=["🥇","🥈","🥉","4️⃣"]
 
-    cl,cc,cr=st.columns([1,3,1])
+    # My score for celebration
+    my_score = data["players"].get(pname,{}).get("score",0)
+    my_pct   = int(my_score/(total*lvl["mult"])*100) if total else 0
+
+    cl,cc,cr=st.columns([0.5,4,0.5])
     with cc:
-        st.markdown('<div class="final">', unsafe_allow_html=True)
+        # Celebration for this player
+        st.markdown(celebration_html(my_pct, pname), unsafe_allow_html=True)
+
+        st.markdown('<div class="final" style="margin-top:1rem">', unsafe_allow_html=True)
         st.markdown('<h1>🏆 CLASSEMENT FINAL</h1>', unsafe_allow_html=True)
         st.markdown(f'<div style="color:#555;font-size:.8rem;margin-bottom:1.2rem">{mode} · {level}</div>', unsafe_allow_html=True)
         for rank,(pn,pp) in enumerate(sorted_p):
-            sc2=pp.get("score",0); pct=int(sc2/(total*lvl["mult"])*100) if total else 0
+            sc2=pp.get("score",0); pct2=int(sc2/(total*lvl["mult"])*100) if total else 0
             is_me=(pn==pname); ci=list(data["players"].keys()).index(pn)%4
             st.markdown(
-                f'<div style="display:flex;align-items:center;gap:.9rem;padding:.75rem 1.1rem;'
-                f'background:rgba(0,0,0,.3);border:1px solid {"#00ff88" if is_me else "#222"};'
-                f'border-radius:12px;margin:.35rem 0">'
-                f'<div style="font-size:1.6rem">{medals[min(rank,3)]}</div>'
-                f'<div style="color:{PLAYER_COLORS[ci]};font-weight:700;flex:1">{"★ " if is_me else ""}{pn}</div>'
-                f'<div style="color:#666;font-size:.72rem;margin-right:.5rem">{pct}%</div>'
-                f'<div style="color:#ffaa00;font-family:Orbitron;font-size:1.1rem;font-weight:900">{sc2} pts</div>'
+                f'<div style="display:flex;align-items:center;gap:.9rem;padding:.8rem 1.2rem;'
+                f'background:rgba(0,0,0,.35);border:2px solid {"#00ff88" if is_me else "#222"};'
+                f'border-radius:14px;margin:.4rem 0;'
+                f'{"box-shadow:0 0 20px rgba(0,255,136,.2);" if is_me else ""}">'
+                f'<div style="font-size:1.8rem">{medals[min(rank,3)]}</div>'
+                f'<div style="color:{PLAYER_COLORS[ci]};font-weight:700;flex:1;font-size:1rem">{"★ " if is_me else ""}{pn}</div>'
+                f'<div style="color:#666;font-size:.72rem;margin-right:.5rem">{pct2}%</div>'
+                f'<div style="color:#ffaa00;font-family:Orbitron;font-size:1.2rem;font-weight:900">{sc2} pts</div>'
                 f'</div>', unsafe_allow_html=True
             )
         st.markdown('</div>', unsafe_allow_html=True)
@@ -1127,7 +1364,14 @@ def screen_room_result(data, pname, lvl, mode, level):
         if my_wrongs:
             st.markdown('<div class="hdr">📖 Votre révision</div>', unsafe_allow_html=True)
             for wa in my_wrongs[:12]:
-                st.markdown(f'<div style="background:rgba(255,68,68,.04);border:1px solid rgba(255,68,68,.15);border-radius:8px;padding:.6rem .85rem;margin:.22rem 0"><div style="color:#00d4ff;font-weight:700;font-size:.85rem">{wa["question"]}</div><div style="color:#ff8888;font-size:.75rem">Vous : {wa["votre_reponse"]}</div><div style="color:#00ff88;font-size:.75rem">✅ {wa["bonne_reponse"]}</div></div>', unsafe_allow_html=True)
+                st.markdown(
+                    f'<div style="background:rgba(255,68,68,.05);border:1px solid rgba(255,68,68,.18);'
+                    f'border-radius:10px;padding:.7rem 1rem;margin:.28rem 0">'
+                    f'<div style="color:#00d4ff;font-weight:700;font-size:.88rem">❓ {wa["question"]}</div>'
+                    f'<div style="color:#ff8888;font-size:.78rem">Votre réponse : {wa["votre_reponse"]}</div>'
+                    f'<div style="color:#00ff88;font-size:.82rem">✅ Bonne réponse : <strong>{wa["bonne_reponse"]}</strong></div>'
+                    f'</div>', unsafe_allow_html=True
+                )
 
         if st.button("🏠 Retour au menu", use_container_width=True, key="room_home"):
             goto("home")
